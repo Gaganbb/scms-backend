@@ -3,3 +3,6 @@ flask-cors
 gunicorn
 qrcode
 pillow
+flask-login
+flask-sqlalchemy
+email-validator
