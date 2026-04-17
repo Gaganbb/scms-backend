@@ -1,9 +1,8 @@
-
-flask-login
-flask-sqlalchemy
-email-validator
 flask==3.0.3
 flask-cors==4.0.0
 gunicorn==21.2.0
 qrcode==7.4.2
-pillow==10.3.0
+pillow==10.0.1
+flask-login
+flask-sqlalchemy
+email-validator
