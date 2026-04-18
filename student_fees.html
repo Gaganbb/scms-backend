@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Fee Status — {{ student.name }}{% endblock %}
+{% block page_title %}Fee Status{% endblock %}
+{% block page_sub %}{{ student.name }} · {{ student.usn }} · {{ student.department }} Sem {{ student.semester }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="/students/{{ student.id }}" class="btn btn-ghost btn-sm"><i class="fa fa-arrow-left"></i> Back to Student</a>
+{% endblock %}
+
+{% block content %}
+<!-- Fee Overview -->
+{% set total_due   = fees|sum(attribute='amount') %}
+{% set total_paid  = fees|sum(attribute='amount_paid') %}
+{% set total_bal   = fees|sum(attribute='balance') %}
+<div class="stats-grid" style="margin-bottom:24px;">
+  <div class="stat-card">
+    <div class="stat-icon si-blue"><i class="fa fa-file-invoice-dollar"></i></div>
+    <div><div class="stat-val">₹{{ "{:,.0f}".format(total_due) }}</div><div class="stat-label">Total Due</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon si-green"><i class="fa fa-circle-check"></i></div>
+    <div><div class="stat-val">₹{{ "{:,.0f}".format(total_paid) }}</div><div class="stat-label">Total Paid</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon {% if total_bal>0 %}si-red{% else %}si-green{% endif %}"><i class="fa fa-scale-balanced"></i></div>
+    <div>
+      <div class="stat-val">₹{{ "{:,.0f}".format(total_bal) }}</div>
+      <div class="stat-label">Balance</div>
+      {% if total_bal<=0 %}<div class="stat-sub" style="color:var(--green);">✅ Fully Cleared</div>{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><span class="card-title">Fee Breakdown</span></div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Type</th><th>Label</th><th>Amount</th><th>Paid</th><th>Balance</th><th>Due Date</th><th>Mode</th><th>Status</th><th>Action</th></tr>
+      </thead>
+      <tbody>
+        {% for f in fees %}
+        <tr id="frow-{{ f.fee_struct_id }}">
+          <td><span class="badge badge-blue">{{ f.fee_type|title }}</span></td>
+          <td>{{ f.label }}</td>
+          <td><strong>₹{{ "{:,.0f}".format(f.amount) }}</strong></td>
+          <td>₹{{ "{:,.0f}".format(f.amount_paid) }}</td>
+          <td>
+            <span class="badge {% if f.balance<=0 %}badge-green{% elif f.balance<f.amount %}badge-yellow{% else %}badge-red{% endif %}">
+              ₹{{ "{:,.0f}".format(f.balance) }}
+            </span>
+          </td>
+          <td style="font-size:12px;color:var(--muted);">{{ f.due_date }}</td>
+          <td style="font-size:12px;color:var(--muted);">{{ f.payment_mode or '—' }}</td>
+          <td>
+            <span class="badge {% if f.status=='paid' %}badge-green{% elif f.status=='partial' %}badge-yellow{% else %}badge-red{% endif %}">
+              {{ f.status|title }}
+            </span>
+          </td>
+          <td>
+            {% if f.balance > 0 %}
+            <button class="btn btn-primary btn-sm" onclick="openPayModal({{ f.fee_struct_id }}, '{{ f.label }}', {{ f.balance }})">
+              <i class="fa fa-credit-card"></i> Pay
+            </button>
+            {% else %}
+            <span style="color:var(--green);font-size:12px;"><i class="fa fa-check"></i> Paid</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- PAYMENT MODAL -->
+<div class="modal-overlay" id="payModal">
+  <div class="modal">
+    <div class="modal-title" id="payModalTitle">Record Payment <button class="modal-close" onclick="closeModal('payModal')">✕</button></div>
+    <input type="hidden" id="pay-fsid">
+    <div class="form-group"><label>Amount Paying (₹) *</label>
+      <input id="pay-amount" type="number" min="1" placeholder="Enter amount">
+      <p style="font-size:11px;color:var(--muted);margin-top:4px;">Balance: <span id="pay-balance"></span></p>
+    </div>
+    <div class="input-row">
+      <div class="form-group"><label>Payment Date *</label><input id="pay-date" type="date"></div>
+      <div class="form-group"><label>Payment Mode *</label>
+        <select id="pay-mode"><option value="cash">Cash</option><option value="upi">UPI</option>
+          <option value="dd">DD / Cheque</option><option value="online">Online Transfer</option></select>
+      </div>
+    </div>
+    <div class="form-group"><label>Receipt No.</label><input id="pay-receipt" placeholder="Optional receipt number"></div>
+    <div class="form-group"><label>Status</label>
+      <select id="pay-status"><option value="paid">Paid (Full)</option><option value="partial">Partial Payment</option></select>
+    </div>
+    <div class="form-group"><label>Remarks</label><input id="pay-remarks" placeholder="Optional notes"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px;">
+      <button class="btn btn-ghost" onclick="closeModal('payModal')">Cancel</button>
+      <button class="btn btn-success" onclick="submitPayment()"><i class="fa fa-check"></i> Record Payment</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function openPayModal(fsid, label, balance) {
+  document.getElementById('pay-fsid').value = fsid;
+  document.getElementById('payModalTitle').innerHTML = `Pay — ${label} <button class="modal-close" onclick="closeModal('payModal')">✕</button>`;
+  document.getElementById('pay-balance').textContent = '₹' + balance.toLocaleString();
+  document.getElementById('pay-amount').value = balance;
+  document.getElementById('pay-date').value = new Date().toISOString().slice(0,10);
+  openModal('payModal');
+}
+
+async function submitPayment() {
+  const d = await apiPost('/fees/pay', {
+    student_id:    {{ student.id }},
+    fee_struct_id: parseInt(document.getElementById('pay-fsid').value),
+    amount_paid:   parseFloat(document.getElementById('pay-amount').value),
+    payment_date:  document.getElementById('pay-date').value,
+    payment_mode:  document.getElementById('pay-mode').value,
+    receipt_no:    document.getElementById('pay-receipt').value,
+    status:        document.getElementById('pay-status').value,
+    remarks:       document.getElementById('pay-remarks').value,
+  });
+  if (d.success) { toast('Payment recorded!','success'); setTimeout(()=>location.reload(),700); }
+  else toast('Failed to record payment','error');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>{% block title %}SCMS Pro{% endblock %} — Smart Classroom</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<style>
+:root {
+  --bg:       #060b18;
+  --surface:  #0d1525;
+  --card:     #111d35;
+  --border:   #1e2d4a;
+  --primary:  #4f8ef7;
+  --primary2: #6366f1;
+  --accent:   #22d3ee;
+  --green:    #10b981;
+  --red:      #f43f5e;
+  --yellow:   #f59e0b;
+  --text:     #e2eaff;
+  --muted:    #6b82a8;
+  --sidebar-w: 260px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Outfit', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  overflow-x: hidden;
+}
+
+/* ── Sidebar ─────────────────────────────────── */
+.sidebar {
+  width: var(--sidebar-w);
+  min-height: 100vh;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  left: 0; top: 0;
+  z-index: 100;
+  transition: transform .3s ease;
+}
+.sidebar-logo {
+  padding: 28px 24px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.logo-icon {
+  width: 40px; height: 40px;
+  background: linear-gradient(135deg, var(--primary), var(--primary2));
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 800;
+  color: white;
+}
+.logo-text { font-size: 18px; font-weight: 800; letter-spacing: -.3px; }
+.logo-sub  { font-size: 11px; color: var(--muted); font-weight: 400; }
+
+.sidebar-nav { flex: 1; padding: 20px 12px; display: flex; flex-direction: column; gap: 4px; }
+.nav-section { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase;
+               letter-spacing: 1.2px; padding: 12px 12px 6px; }
+.nav-link {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 14px; border-radius: 10px;
+  color: var(--muted); text-decoration: none;
+  font-size: 14px; font-weight: 500;
+  transition: all .2s ease;
+  position: relative;
+}
+.nav-link i { width: 18px; text-align: center; font-size: 15px; }
+.nav-link:hover { background: var(--card); color: var(--text); }
+.nav-link.active {
+  background: linear-gradient(135deg, rgba(79,142,247,.15), rgba(99,102,241,.1));
+  color: var(--primary);
+  border: 1px solid rgba(79,142,247,.2);
+}
+.nav-link.active::before {
+  content: '';
+  position: absolute; left: -12px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 20px; background: var(--primary);
+  border-radius: 0 3px 3px 0;
+}
+.nav-badge {
+  margin-left: auto; background: var(--primary); color: white;
+  font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px;
+}
+
+.sidebar-footer {
+  padding: 16px 12px;
+  border-top: 1px solid var(--border);
+}
+.user-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 10px;
+  background: var(--card);
+}
+.user-avatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 13px; color: white;
+  text-transform: uppercase;
+}
+.user-info { flex: 1; }
+.user-name  { font-size: 13px; font-weight: 600; }
+.user-role  { font-size: 11px; color: var(--muted); text-transform: capitalize; }
+.logout-btn {
+  color: var(--muted); text-decoration: none; font-size: 14px;
+  transition: color .2s;
+}
+.logout-btn:hover { color: var(--red); }
+
+/* ── Main ────────────────────────────────────── */
+.main {
+  margin-left: var(--sidebar-w);
+  flex: 1;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Topbar ──────────────────────────────────── */
+.topbar {
+  height: 64px; padding: 0 28px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 50;
+}
+.topbar-title { font-size: 20px; font-weight: 700; }
+.topbar-right  { display: flex; align-items: center; gap: 16px; }
+.live-dot {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12px; color: var(--green); font-weight: 600;
+}
+.live-dot::before {
+  content: '';
+  width: 8px; height: 8px; background: var(--green);
+  border-radius: 50%;
+  box-shadow: 0 0 0 0 rgba(16,185,129,.6);
+  animation: pulse-dot 1.5s infinite;
+}
+@keyframes pulse-dot {
+  0%   { box-shadow: 0 0 0 0 rgba(16,185,129,.6); }
+  70%  { box-shadow: 0 0 0 8px rgba(16,185,129,0); }
+  100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+}
+.date-chip {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 6px 14px;
+  font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace;
+}
+
+/* ── Content ─────────────────────────────────── */
+.content { flex: 1; padding: 28px; }
+
+/* ── Cards ───────────────────────────────────── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+}
+.card-sm { padding: 16px; }
+.card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px;
+}
+.card-title { font-size: 15px; font-weight: 700; }
+.card-sub   { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* ── Stat Cards ──────────────────────────────── */
+.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.stat-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 16px; padding: 22px;
+  position: relative; overflow: hidden;
+  transition: border-color .2s, transform .2s;
+}
+.stat-card:hover { border-color: var(--primary); transform: translateY(-2px); }
+.stat-card::after {
+  content: ''; position: absolute; top: 0; right: 0;
+  width: 80px; height: 80px;
+  background: radial-gradient(circle, var(--glow) 0%, transparent 70%);
+  opacity: .12; pointer-events: none;
+}
+.stat-card.blue  { --glow: var(--primary); }
+.stat-card.green { --glow: var(--green); }
+.stat-card.red   { --glow: var(--red); }
+.stat-card.cyan  { --glow: var(--accent); }
+.stat-icon {
+  width: 42px; height: 42px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; margin-bottom: 14px;
+}
+.stat-card.blue  .stat-icon { background: rgba(79,142,247,.15); color: var(--primary); }
+.stat-card.green .stat-icon { background: rgba(16,185,129,.15); color: var(--green); }
+.stat-card.red   .stat-icon { background: rgba(244,63,94,.15);  color: var(--red); }
+.stat-card.cyan  .stat-icon { background: rgba(34,211,238,.15); color: var(--accent); }
+.stat-value { font-size: 32px; font-weight: 800; line-height: 1; }
+.stat-label { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.stat-trend { position: absolute; top: 22px; right: 22px; font-size: 11px; color: var(--green); font-weight: 600; }
+
+/* ── Table ───────────────────────────────────── */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th {
+  text-align: left; font-size: 11px; font-weight: 700;
+  color: var(--muted); text-transform: uppercase; letter-spacing: .8px;
+  padding: 10px 16px; border-bottom: 1px solid var(--border);
+}
+td { padding: 13px 16px; border-bottom: 1px solid rgba(30,45,74,.5); font-size: 14px; }
+tr:hover td { background: rgba(79,142,247,.04); }
+tr:last-child td { border-bottom: none; }
+
+/* ── Badges ──────────────────────────────────── */
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+}
+.badge-green  { background: rgba(16,185,129,.12); color: var(--green); border: 1px solid rgba(16,185,129,.25); }
+.badge-red    { background: rgba(244,63,94,.12);  color: var(--red);   border: 1px solid rgba(244,63,94,.25); }
+.badge-blue   { background: rgba(79,142,247,.12); color: var(--primary); border: 1px solid rgba(79,142,247,.25); }
+.badge-yellow { background: rgba(245,158,11,.12); color: var(--yellow);  border: 1px solid rgba(245,158,11,.25); }
+
+/* ── Buttons ─────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 18px; border-radius: 10px;
+  font-size: 13px; font-weight: 600; font-family: 'Outfit', sans-serif;
+  cursor: pointer; border: none; transition: all .2s; text-decoration: none;
+}
+.btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary2)); color: white; }
+.btn-primary:hover { opacity: .9; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(79,142,247,.3); }
+.btn-ghost   { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+.btn-ghost:hover { border-color: var(--primary); color: var(--primary); }
+.btn-danger  { background: rgba(244,63,94,.1); color: var(--red); border: 1px solid rgba(244,63,94,.2); }
+.btn-danger:hover { background: var(--red); color: white; }
+.btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 8px; }
+.btn-success { background: rgba(16,185,129,.1); color: var(--green); border: 1px solid rgba(16,185,129,.2); }
+.btn-success:hover { background: var(--green); color: white; }
+
+/* ── Forms ───────────────────────────────────── */
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 12px; font-weight: 600; color: var(--muted);
+              text-transform: uppercase; letter-spacing: .5px; margin-bottom: 7px; }
+.form-control {
+  width: 100%; padding: 10px 14px; border-radius: 10px;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text); font-family: 'Outfit', sans-serif; font-size: 14px;
+  transition: border-color .2s, box-shadow .2s;
+  outline: none;
+}
+.form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79,142,247,.1); }
+.form-control option { background: var(--surface); }
+.form-row { display: flex; gap: 12px; }
+.form-row .form-group { flex: 1; }
+
+/* ── Modal ───────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(6,11,24,.85);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200; opacity: 0; pointer-events: none;
+  transition: opacity .25s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 20px; padding: 32px; width: 460px; max-width: 95vw;
+  transform: scale(.95); transition: transform .25s;
+  box-shadow: 0 30px 80px rgba(0,0,0,.5);
+}
+.modal-overlay.open .modal { transform: scale(1); }
+.modal-title { font-size: 18px; font-weight: 700; margin-bottom: 24px;
+               display: flex; align-items: center; gap: 10px; }
+.modal-close {
+  margin-left: auto; background: none; border: none; color: var(--muted);
+  font-size: 20px; cursor: pointer; transition: color .2s; padding: 0;
+}
+.modal-close:hover { color: var(--red); }
+
+/* ── Live feed ───────────────────────────────── */
+.live-feed {
+  display: flex; flex-direction: column; gap: 8px;
+  max-height: 340px; overflow-y: auto;
+}
+.feed-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: 10px;
+  background: var(--surface); border: 1px solid var(--border);
+  animation: feedIn .4s ease;
+}
+@keyframes feedIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.feed-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: white; text-transform: uppercase;
+  flex-shrink: 0;
+}
+.feed-name  { font-size: 13px; font-weight: 600; }
+.feed-meta  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.feed-time  { margin-left: auto; font-size: 11px; color: var(--muted);
+              font-family: 'DM Mono', monospace; flex-shrink: 0; }
+
+/* ── Alert ───────────────────────────────────── */
+.alert {
+  padding: 12px 16px; border-radius: 10px;
+  font-size: 13px; margin-bottom: 16px;
+  display: flex; align-items: center; gap: 10px;
+  animation: fadeIn .3s ease;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+.alert-error { background: rgba(244,63,94,.1); border: 1px solid rgba(244,63,94,.25); color: var(--red); }
+.alert-success { background: rgba(16,185,129,.1); border: 1px solid rgba(16,185,129,.25); color: var(--green); }
+
+/* ── Timetable grid ──────────────────────────── */
+.tt-grid { overflow-x: auto; }
+.tt-table { width: 100%; border-collapse: collapse; min-width: 700px; }
+.tt-table th {
+  background: var(--surface); font-size: 12px; font-weight: 700;
+  color: var(--muted); text-transform: uppercase; letter-spacing: .8px;
+  padding: 12px 14px; text-align: center;
+}
+.tt-table td {
+  padding: 4px; border: 1px solid var(--border); vertical-align: top;
+  min-width: 120px; height: 72px;
+}
+.tt-cell {
+  background: linear-gradient(135deg, rgba(79,142,247,.08), rgba(99,102,241,.06));
+  border-radius: 8px; padding: 8px 10px; height: 100%;
+  border-left: 3px solid var(--primary);
+  cursor: pointer; transition: all .2s;
+  position: relative;
+}
+.tt-cell:hover { background: rgba(79,142,247,.15); }
+.tt-cell .subj { font-size: 12px; font-weight: 700; color: var(--text); }
+.tt-cell .teach { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.tt-cell .ttime { font-size: 10px; color: var(--accent); font-family: 'DM Mono', monospace; margin-top: 2px; }
+.tt-empty {
+  height: 100%; display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; border: 1.5px dashed var(--border);
+  cursor: pointer; transition: all .2s; opacity: .4;
+}
+.tt-empty:hover { opacity: 1; border-color: var(--primary); }
+.tt-add-icon { font-size: 18px; color: var(--muted); }
+.tt-delete-btn {
+  position: absolute; top: 4px; right: 4px;
+  background: none; border: none; color: var(--muted);
+  cursor: pointer; font-size: 11px; opacity: 0; transition: opacity .2s;
+  padding: 2px;
+}
+.tt-cell:hover .tt-delete-btn { opacity: 1; }
+.tt-delete-btn:hover { color: var(--red); }
+.tt-period-label { font-size: 11px; font-weight: 700; color: var(--muted); text-align: center; }
+
+/* ── Progress bar ────────────────────────────── */
+.prog-bar { height: 6px; background: var(--surface); border-radius: 99px; overflow: hidden; }
+.prog-fill { height: 100%; border-radius: 99px; transition: width .6s ease; }
+
+/* ── Scrollbar ───────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── Notif bell ──────────────────────────────── */
+.notif-btn {
+  position: relative; background: var(--card); border: 1px solid var(--border);
+  color: var(--muted); width: 36px; height: 36px; border-radius: 10px;
+  cursor: pointer; font-size: 15px; transition: all .2s;
+  display: flex; align-items: center; justify-content: center;
+}
+.notif-btn:hover { border-color: var(--primary); color: var(--primary); }
+.notif-badge {
+  position: absolute; top: -4px; right: -4px;
+  background: var(--red); color: white;
+  font-size: 9px; font-weight: 800; width: 16px; height: 16px;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-family: 'Outfit', sans-serif; border: 2px solid var(--surface);
+}
+.notif-panel {
+  position: absolute; top: 56px; right: 80px; width: 340px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  z-index: 200; display: none;
+}
+.notif-panel.open { display: block; animation: fadeIn .2s ease; }
+.notif-header {
+  padding: 16px 18px 12px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 14px; font-weight: 700;
+}
+.notif-list { max-height: 320px; overflow-y: auto; }
+.notif-item {
+  padding: 12px 18px; border-bottom: 1px solid rgba(30,45,74,.4);
+  display: flex; gap: 10px; align-items: flex-start; transition: background .15s;
+}
+.notif-item:hover { background: var(--surface); }
+.notif-item.unread { background: rgba(79,142,247,.04); }
+.notif-icon { font-size: 16px; margin-top: 1px; flex-shrink: 0; }
+.notif-msg  { font-size: 13px; line-height: 1.4; }
+.notif-time { font-size: 11px; color: var(--muted); margin-top: 3px; font-family: 'DM Mono', monospace; }
+
+/* ── Global search ───────────────────────────── */
+.topbar-search {
+  position: relative; display: flex; align-items: center;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 0 12px; gap: 8px; transition: border-color .2s;
+}
+.topbar-search:focus-within { border-color: var(--primary); }
+.topbar-search > i { color: var(--muted); font-size: 13px; flex-shrink: 0; }
+.topbar-search input {
+  background: none; border: none; outline: none;
+  color: var(--text); font-family: 'Outfit', sans-serif;
+  font-size: 13px; width: 180px; padding: 8px 0;
+}
+.topbar-search input::placeholder { color: var(--muted); }
+.search-dropdown {
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+  background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0,0,0,.4); z-index: 300;
+  display: none; max-height: 260px; overflow-y: auto;
+}
+.search-dropdown.open { display: block; }
+.search-item {
+  padding: 10px 14px; display: flex; align-items: center; gap: 10px;
+  cursor: pointer; transition: background .15s; font-size: 13px;
+  text-decoration: none; color: var(--text);
+}
+.search-item:hover { background: var(--surface); }
+.search-avatar {
+  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: white;
+}
+
+/* ── Toast ───────────────────────────────────── */
+#toast-container {
+  position: fixed; bottom: 24px; right: 24px;
+  display: flex; flex-direction: column; gap: 10px; z-index: 999;
+}
+.toast {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 18px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.4);
+  display: flex; align-items: center; gap: 12px; min-width: 280px;
+  animation: toastIn .3s ease; font-size: 13px; font-weight: 500;
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(20px) scale(.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.toast-icon { font-size: 18px; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">SC</div>
+    <div>
+      <div class="logo-text">SCMS Pro</div>
+      <div class="logo-sub">Smart Classroom</div>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section">Main</div>
+    <a href="/dashboard" class="nav-link {% if request.path=='/dashboard' %}active{% endif %}">
+      <i class="fa-solid fa-chart-pie"></i> Dashboard
+    </a>
+    <a href="/attendance" class="nav-link {% if '/attendance' in request.path %}active{% endif %}">
+      <i class="fa-solid fa-calendar-check"></i> Attendance
+    </a>
+    <a href="/students" class="nav-link {% if '/students' in request.path %}active{% endif %}">
+      <i class="fa-solid fa-users"></i> Students
+    </a>
+    <a href="/timetable" class="nav-link {% if '/timetable' in request.path %}active{% endif %}">
+      <i class="fa-solid fa-table-cells"></i> Timetable
+    </a>
+    <a href="/reports" class="nav-link {% if '/reports' in request.path %}active{% endif %}">
+      <i class="fa-solid fa-chart-bar"></i> Reports
+    </a>
+    <a href="/announcements" class="nav-link {% if '/announcements' in request.path %}active{% endif %}">
+      <i class="fa-solid fa-bullhorn"></i> Announcements
+    </a>
+    <div class="nav-section">System</div>
+    <a href="/settings" class="nav-link {% if '/settings' in request.path and '/email' not in request.path %}active{% endif %}">
+      <i class="fa-solid fa-gear"></i> Settings
+    </a>
+    <a href="/settings/email" class="nav-link {% if '/settings/email' in request.path %}active{% endif %}">
+      <i class="fa-solid fa-envelope"></i> Email Setup
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="user-avatar">{{ session.username[0] if session.username else 'U' }}</div>
+      <div class="user-info">
+        <div class="user-name">{{ session.username }}</div>
+        <div class="user-role">{{ session.role }}</div>
+      </div>
+      <a href="/logout" class="logout-btn" title="Logout"><i class="fa-solid fa-right-from-bracket"></i></a>
+    </div>
+  </div>
+</aside>
+
+<!-- Main -->
+<div class="main">
+  <header class="topbar">
+    <div class="topbar-title">{% block page_title %}Dashboard{% endblock %}</div>
+    <div class="topbar-right">
+      <span class="live-dot" id="live-indicator">Live</span>
+      <!-- Search -->
+      <div class="topbar-search">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="global-search" placeholder="Search students…" autocomplete="off"/>
+        <div class="search-dropdown" id="search-dropdown"></div>
+      </div>
+      <!-- Theme toggle -->
+      <button class="notif-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">
+        <i class="fa-solid fa-circle-half-stroke"></i>
+      </button>
+      <!-- Bell -->
+      <button class="notif-btn" id="notif-btn" onclick="toggleNotifPanel()">
+        <i class="fa-solid fa-bell"></i>
+        <span class="notif-badge" id="notif-badge" style="display:none">0</span>
+      </button>
+      <!-- Notif Panel -->
+      <div class="notif-panel" id="notif-panel">
+        <div class="notif-header">
+          <span>Notifications</span>
+          <button onclick="markAllRead()" style="background:none;border:none;color:var(--primary);font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif">Mark all read</button>
+        </div>
+        <div class="notif-list" id="notif-list">
+          <div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">
+            <i class="fa-regular fa-bell-slash" style="font-size:24px;display:block;margin-bottom:8px"></i>
+            No notifications
+          </div>
+        </div>
+      </div>
+      <span class="date-chip" id="live-clock"></span>
+    </div>
+  </header>
+
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<script>
+// ── Clock ──────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('live-clock').textContent =
+    now.toLocaleDateString('en-IN',{weekday:'short',day:'2-digit',month:'short'})
+    + ' · ' + now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+}
+updateClock(); setInterval(updateClock, 1000);
+
+// ── Toast ──────────────────────────────────────
+function showToast(msg, type='success') {
+  const icons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' };
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.innerHTML = `<span class="toast-icon">${icons[type]||'ℹ️'}</span><span>${msg}</span>`;
+  document.getElementById('toast-container').appendChild(t);
+  setTimeout(() => t.style.opacity='0', 3000);
+  setTimeout(() => t.remove(), 3400);
+}
+
+// ── Notifications ─────────────────────────────
+function toggleNotifPanel() {
+  const panel = document.getElementById('notif-panel');
+  panel.classList.toggle('open');
+  if (panel.classList.contains('open')) loadNotifications();
+}
+function loadNotifications() {
+  fetch('/api/notifications').then(r=>r.json()).then(d => {
+    const badge = document.getElementById('notif-badge');
+    badge.textContent = d.unread;
+    badge.style.display = d.unread > 0 ? 'flex' : 'none';
+    const list = document.getElementById('notif-list');
+    if (!d.notifications.length) {
+      list.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px"><i class="fa-regular fa-bell-slash" style="font-size:24px;display:block;margin-bottom:8px"></i>No notifications</div>';
+      return;
+    }
+    const icons = { info:'ℹ️', success:'✅', warning:'⚠️', error:'❌', announcement:'📢' };
+    list.innerHTML = d.notifications.map(n => `
+      <div class="notif-item ${n.read?'':'unread'}">
+        <span class="notif-icon">${icons[n.type]||'ℹ️'}</span>
+        <div>
+          <div class="notif-msg">${n.message}</div>
+          <div class="notif-time">${n.created_at.slice(0,16)}</div>
+        </div>
+      </div>`).join('');
+  });
+}
+function markAllRead() {
+  fetch('/api/notifications/read',{method:'POST'}).then(()=>loadNotifications());
+}
+// Poll unread count every 30s
+setInterval(() => {
+  fetch('/api/notifications').then(r=>r.json()).then(d => {
+    const b = document.getElementById('notif-badge');
+    b.textContent = d.unread;
+    b.style.display = d.unread > 0 ? 'flex' : 'none';
+  });
+}, 30000);
+loadNotifications();
+
+// Close notif panel on outside click
+document.addEventListener('click', e => {
+  const btn = document.getElementById('notif-btn');
+  const panel = document.getElementById('notif-panel');
+  if (panel && !panel.contains(e.target) && !btn.contains(e.target)) {
+    panel.classList.remove('open');
+  }
+});
+
+// ── Global Search ──────────────────────────────
+let allStudents = [];
+fetch('/students').then(()=>{}).catch(()=>{});
+
+const searchInput = document.getElementById('global-search');
+const searchDropdown = document.getElementById('search-dropdown');
+
+if (searchInput) {
+  searchInput.addEventListener('input', async function() {
+    const q = this.value.trim().toLowerCase();
+    if (!q) { searchDropdown.classList.remove('open'); return; }
+    if (!allStudents.length) {
+      // Fetch students list from attendance API as proxy
+      try {
+        const r = await fetch('/api/today-attendance');
+        allStudents = await r.json();
+      } catch(e) { return; }
+    }
+    const matches = allStudents.filter(s =>
+      s.name.toLowerCase().includes(q) || s.class.toLowerCase().includes(q)
+    ).slice(0, 8);
+    if (!matches.length) {
+      searchDropdown.innerHTML = '<div class="search-item" style="color:var(--muted)">No results found</div>';
+    } else {
+      searchDropdown.innerHTML = matches.map(s => `
+        <a class="search-item" href="/students">
+          <div class="search-avatar">${s.name[0]}</div>
+          <div>
+            <div style="font-weight:600">${s.name}</div>
+            <div style="font-size:11px;color:var(--muted)">Class ${s.class} · ${s.status}</div>
+          </div>
+          <span class="badge ${s.status==='Present'?'badge-green':'badge-red'}" style="margin-left:auto;font-size:9px">${s.status}</span>
+        </a>`).join('');
+    }
+    searchDropdown.classList.add('open');
+  });
+  document.addEventListener('click', e => {
+    if (!searchInput.contains(e.target)) searchDropdown.classList.remove('open');
+  });
+}
+const evtSource = new EventSource('/stream');
+evtSource.onmessage = (e) => {
+  const data = JSON.parse(e.data);
+  if (data.type === 'attendance_marked') {
+    showToast(`${data.name} marked ${data.status}`, data.status==='Present'?'success':'error');
+    if (typeof refreshAttendance === 'function') refreshAttendance();
+    if (typeof refreshStats === 'function') refreshStats();
+  }
+  if (data.type === 'student_added') {
+    showToast(`New student: ${data.name} (${data.class})`, 'info');
+  }
+  if (data.type === 'bulk_attendance') {
+    showToast(`${data.count} students marked Present`, 'success');
+    if (typeof refreshAttendance === 'function') refreshAttendance();
+    if (typeof refreshStats === 'function') refreshStats();
+  }
+  if (data.type === 'new_announcement') {
+    showToast(`📢 New: ${data.title}`, 'info');
+    loadNotifications();
+  }
+  if (data.type === 'email_sent') {
+    const icon = data.status === 'sent' ? '📧' : '❌';
+    showToast(`${icon} Email to ${data.name}: ${data.status}`, data.status === 'sent' ? 'success' : 'error');
+  }
+};
+evtSource.onerror = () => {
+  document.getElementById('live-indicator').style.color = '#f43f5e';
+};
+evtSource.onopen = () => {
+  document.getElementById('live-indicator').style.color = '#10b981';
+};
+
+// ── Modal helpers ──────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.addEventListener('keydown', e => {
+  if (e.key==='Escape') document.querySelectorAll('.modal-overlay.open')
+    .forEach(m => m.classList.remove('open'));
+});
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}Timetable{% endblock %}
+{% block page_title %}Timetable{% endblock %}
+
+{% block content %}
+<!-- Class Selector -->
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap">
+  <div style="display:flex;gap:8px">
+    {% for c in classes %}
+    <a href="/timetable?class={{ c }}"
+       class="btn {% if c==selected_class %}btn-primary{% else %}btn-ghost{% endif %}">{{ c }}</a>
+    {% endfor %}
+    {% if not classes %}
+    <span style="color:var(--muted);font-size:14px">Add students to see classes here</span>
+    {% endif %}
+  </div>
+  <button class="btn btn-ghost" style="margin-left:auto" onclick="openModal('addPeriodModal')">
+    <i class="fa-solid fa-plus"></i> Add Period
+  </button>
+</div>
+
+<!-- Timetable Grid -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div class="card-title">Weekly Schedule — {{ selected_class }}</div>
+      <div class="card-sub">Click any empty cell to add a period · Hover to delete</div>
+    </div>
+    <span class="badge badge-blue">{{ selected_class }}</span>
+  </div>
+  <div class="tt-grid">
+    <table class="tt-table">
+      <thead>
+        <tr>
+          <th style="width:60px">Period</th>
+          {% for day in days %}
+          <th>{{ day }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for period in periods %}
+        <tr>
+          <td style="text-align:center;background:var(--surface)">
+            <div class="tt-period-label">P{{ period }}</div>
+          </td>
+          {% for day in days %}
+          {% set cell = grid[day][period] %}
+          <td>
+            {% if cell %}
+            <div class="tt-cell" title="{{ cell.subject }} — {{ cell.teacher }}">
+              <div class="subj">{{ cell.subject }}</div>
+              <div class="teach">{{ cell.teacher }}</div>
+              <div class="ttime">{{ cell.time_start }} – {{ cell.time_end }}</div>
+              <button class="tt-delete-btn" onclick="deletePeriod({{ cell.id }}, event)" title="Delete">✕</button>
+            </div>
+            {% else %}
+            <div class="tt-empty" onclick="openAddPeriod('{{ day }}', {{ period }})" title="Add period">
+              <span class="tt-add-icon">+</span>
+            </div>
+            {% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Color Legend -->
+<div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap">
+  <span style="font-size:12px;color:var(--muted)">Subject colors are auto-assigned · Click + to add · Hover cell to delete</span>
+</div>
+
+<!-- Add Period Modal -->
+<div class="modal-overlay" id="addPeriodModal">
+  <div class="modal">
+    <div class="modal-title">
+      <i class="fa-solid fa-calendar-plus" style="color:var(--primary)"></i>
+      Add Period
+      <button class="modal-close" onclick="closeModal('addPeriodModal')">✕</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Day</label>
+        <select id="p-day" class="form-control">
+          {% for d in days %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Period</label>
+        <select id="p-period" class="form-control">
+          {% for p in periods %}<option value="{{ p }}">Period {{ p }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Subject</label>
+      <input type="text" id="p-subject" class="form-control" placeholder="Mathematics"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Teacher</label>
+      <input type="text" id="p-teacher" class="form-control" placeholder="Mr. Sharma"/>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Start Time</label>
+        <input type="time" id="p-start" class="form-control" value="09:00"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">End Time</label>
+        <input type="time" id="p-end" class="form-control" value="09:45"/>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal('addPeriodModal')">Cancel</button>
+      <button class="btn btn-primary" style="flex:1" onclick="addPeriod()">
+        <i class="fa-solid fa-plus"></i> Save Period
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const selectedClass = "{{ selected_class }}";
+
+function openAddPeriod(day, period) {
+  document.getElementById('p-day').value    = day;
+  document.getElementById('p-period').value = period;
+  openModal('addPeriodModal');
+}
+
+function addPeriod() {
+  const data = {
+    class:      selectedClass,
+    day:        document.getElementById('p-day').value,
+    period:     document.getElementById('p-period').value,
+    subject:    document.getElementById('p-subject').value.trim(),
+    teacher:    document.getElementById('p-teacher').value.trim(),
+    time_start: document.getElementById('p-start').value,
+    time_end:   document.getElementById('p-end').value,
+  };
+  if (!data.subject || !data.teacher) { showToast('Fill in subject and teacher', 'error'); return; }
+
+  fetch('/timetable/add', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data)
+  }).then(r=>r.json()).then(d => {
+    if (d.success) { showToast('Period added!', 'success'); location.reload(); }
+  });
+}
+
+function deletePeriod(id, evt) {
+  evt.stopPropagation();
+  if (!confirm('Remove this period?')) return;
+  fetch('/timetable/delete/' + id, {method:'POST'})
+    .then(r=>r.json()).then(d => {
+      if (d.success) { showToast('Period removed', 'info'); location.reload(); }
+    });
+}
+</script>
+{% endblock %}

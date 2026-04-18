@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+{% block title %}Attendance{% endblock %}
+{% block page_title %}Attendance — {{ today }}{% endblock %}
+
+{% block content %}
+<!-- Toolbar -->
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap">
+  <form method="GET" style="display:flex;gap:8px;align-items:center">
+    <select name="class" class="form-control" style="width:160px" onchange="this.form.submit()">
+      <option value="">All Classes</option>
+      {% for c in classes %}
+      <option value="{{ c }}" {% if c==cls_filter %}selected{% endif %}>{{ c }}</option>
+      {% endfor %}
+    </select>
+  </form>
+  <a href="/attendance/scan-qr-page" class="btn btn-primary">
+    <i class="fa-solid fa-qrcode"></i> QR Scan Live
+  </a>
+  <button class="btn btn-success" onclick="markAllPresent()">
+    <i class="fa-solid fa-check-double"></i> Mark All Present
+  </button>
+  <a href="/print/attendance{% if cls_filter %}?class={{ cls_filter }}{% endif %}" target="_blank" class="btn btn-ghost">
+    <i class="fa-solid fa-print"></i> Print Sheet
+  </a>
+  <a href="/export/attendance{% if cls_filter %}?class={{ cls_filter }}{% endif %}" class="btn btn-ghost">
+    <i class="fa-solid fa-file-csv"></i> Export CSV
+  </a>
+  <div style="margin-left:auto;display:flex;gap:8px">
+    <span id="att-present-count" class="badge badge-green">
+      Present: {{ today_data | selectattr('status','eq','Present') | list | length }}
+    </span>
+    <span id="att-absent-count" class="badge badge-red">
+      Absent: {{ today_data | selectattr('status','ne','Present') | list | length }}
+    </span>
+  </div>
+</div>
+
+<!-- Attendance Table -->
+<div class="card" style="margin-bottom:24px">
+  <div class="card-header">
+    <div>
+      <div class="card-title">Today's Attendance</div>
+      <div class="card-sub">Click Present/Absent to mark in real time</div>
+    </div>
+    <span class="live-dot">Auto-refresh</span>
+  </div>
+  <div class="table-wrap">
+    <table id="att-table">
+      <thead>
+        <tr>
+          <th>#</th><th>Student</th><th>Class</th><th>Status</th><th>Time</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="att-tbody">
+        {% for s in today_data %}
+        <tr id="row-{{ s.id }}">
+          <td><span style="color:var(--muted)">{{ loop.index }}</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));
+                          display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:white;flex-shrink:0">
+                {{ s.name[0] }}
+              </div>
+              <span style="font-weight:500">{{ s.name }}</span>
+            </div>
+          </td>
+          <td><span class="badge badge-blue">{{ s.class }}</span></td>
+          <td>
+            <span id="status-{{ s.id }}" class="badge {% if s.status=='Present' %}badge-green{% else %}badge-red{% endif %}">
+              {{ s.status }}
+            </span>
+          </td>
+          <td><span style="font-family:'DM Mono',monospace;font-size:12px;color:var(--muted)" id="time-{{ s.id }}">{{ s.time or '—' }}</span></td>
+          <td>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-success btn-sm" onclick="markStudent({{ s.id }},'Present')">✓ Present</button>
+              <button class="btn btn-danger btn-sm" onclick="markStudent({{ s.id }},'Absent')">✗ Absent</button>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:40px">No students found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Overall Report -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div class="card-title">Cumulative Report</div>
+      <div class="card-sub">All-time attendance percentage per student</div>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Student</th><th>Class</th><th>Attended</th><th>Total Days</th><th>Percentage</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for r in report %}
+        {% set pct = r.percentage %}
+        <tr>
+          <td style="font-weight:500">{{ r.name }}</td>
+          <td><span class="badge badge-blue">{{ r.class }}</span></td>
+          <td>{{ r.attended }}</td>
+          <td>{{ r.total_days }}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:10px">
+              <div class="prog-bar" style="flex:1;max-width:100px">
+                <div class="prog-fill" style="width:{{ pct }}%;background:{% if pct>=75 %}var(--green){% elif pct>=60 %}var(--yellow){% else %}var(--red){% endif %}"></div>
+              </div>
+              <span style="font-family:'DM Mono',monospace;font-size:12px">{{ pct }}%</span>
+            </div>
+          </td>
+          <td>
+            <span class="badge {% if pct>=75 %}badge-green{% elif pct>=60 %}badge-yellow{% else %}badge-red{% endif %}">
+              {% if pct>=75 %}Good{% elif pct>=60 %}Average{% else %}Low{% endif %}
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- QR Scan Modal -->
+<div class="modal-overlay" id="addAttModal">
+  <div class="modal">
+    <div class="modal-title">
+      <i class="fa-solid fa-qrcode" style="color:var(--primary)"></i>
+      QR Code Attendance
+      <button class="modal-close" onclick="closeModal('addAttModal')">✕</button>
+    </div>
+    <div style="text-align:center;padding:20px 0">
+      <div style="font-size:48px;margin-bottom:12px">📷</div>
+      <p style="color:var(--muted);font-size:14px;margin-bottom:20px">
+        Enter the student ID from their QR code to mark attendance
+      </p>
+      <input type="number" id="qr-student-id" class="form-control" placeholder="Student ID" style="text-align:center;font-size:18px;margin-bottom:16px"/>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-success" style="flex:1" onclick="markFromQR('Present')">✓ Mark Present</button>
+        <button class="btn btn-danger" style="flex:1" onclick="markFromQR('Absent')">✗ Mark Absent</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const clsFilter = "{{ cls_filter }}";
+
+function markStudent(id, status) {
+  fetch('/attendance/mark', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({student_id: id, status: status})
+  }).then(r=>r.json()).then(d => {
+    if (d.success) {
+      const badge = document.getElementById('status-' + id);
+      if (badge) {
+        badge.textContent = status;
+        badge.className = 'badge ' + (status==='Present' ? 'badge-green' : 'badge-red');
+      }
+      const time = document.getElementById('time-' + id);
+      if (time) {
+        const now = new Date();
+        time.textContent = now.toTimeString().slice(0,8);
+      }
+      updateCounts();
+    }
+  });
+}
+
+function markFromQR() {
+  const id = document.getElementById('qr-student-id').value;
+  if (!id) return;
+  markStudent(parseInt(id), 'Present');
+  closeModal('addAttModal');
+  document.getElementById('qr-student-id').value = '';
+}
+
+function markAllPresent() {
+  if (!confirm('Mark all students as Present?')) return;
+  fetch('/attendance/mark-all', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({class: clsFilter})
+  }).then(r=>r.json()).then(d => {
+    if (d.success) refreshAttendance();
+  });
+}
+
+function updateCounts() {
+  const rows = document.querySelectorAll('#att-tbody tr');
+  let present = 0, absent = 0;
+  rows.forEach(row => {
+    const b = row.querySelector('.badge');
+    if (b) { b.textContent.trim() === 'Present' ? present++ : absent++; }
+  });
+  document.getElementById('att-present-count').textContent = 'Present: ' + present;
+  document.getElementById('att-absent-count').textContent  = 'Absent: '  + absent;
+}
+
+function refreshAttendance() {
+  const url = '/api/today-attendance' + (clsFilter ? '?class=' + clsFilter : '');
+  fetch(url).then(r=>r.json()).then(data => {
+    let present=0, absent=0;
+    data.forEach(s => {
+      const badge = document.getElementById('status-' + s.id);
+      if (badge) {
+        badge.textContent = s.status;
+        badge.className = 'badge ' + (s.status==='Present'?'badge-green':'badge-red');
+      }
+      const time = document.getElementById('time-' + s.id);
+      if (time) time.textContent = s.time || '—';
+      if (s.status==='Present') present++; else absent++;
+    });
+    document.getElementById('att-present-count').textContent = 'Present: ' + present;
+    document.getElementById('att-absent-count').textContent  = 'Absent: '  + absent;
+  });
+}
+
+setInterval(refreshAttendance, 10000);
+</script>
+{% endblock %}

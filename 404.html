@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>404 — Page Not Found</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#060b18;--primary:#4f8ef7;--muted:#6b82a8;--text:#e2eaff;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);
+  min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;
+  position:relative;overflow:hidden;}
+body::before{content:'';position:absolute;inset:0;
+  background-image:linear-gradient(rgba(79,142,247,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(79,142,247,.03) 1px,transparent 1px);
+  background-size:48px 48px;}
+.wrap{position:relative;z-index:1;padding:40px;}
+.big-num{font-size:140px;font-weight:800;line-height:1;
+  background:linear-gradient(135deg,#4f8ef7,#6366f1,#22d3ee);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  animation:float 3s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-12px);}}
+h1{font-size:24px;font-weight:700;margin:16px 0 10px;}
+p{font-size:15px;color:var(--muted);margin-bottom:32px;max-width:340px;margin-left:auto;margin-right:auto;}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:12px;
+  background:linear-gradient(135deg,#4f8ef7,#6366f1);color:white;font-family:'Outfit',sans-serif;
+  font-size:15px;font-weight:700;text-decoration:none;transition:all .2s;}
+.btn:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(79,142,247,.35);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="big-num">404</div>
+  <h1>Page Not Found</h1>
+  <p>The page you're looking for doesn't exist or has been moved.</p>
+  <a href="/dashboard" class="btn">← Go to Dashboard</a>
+</div>
+</body>
+</html>

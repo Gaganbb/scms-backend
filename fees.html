@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}Fee Tracking — EduTrack Pro{% endblock %}
+{% block page_title %}Fee Tracking{% endblock %}
+{% block page_sub %}Fee collection, structure & defaulters{% endblock %}
+
+{% block topbar_actions %}
+{% if role in ('admin','hod') %}
+<button class="btn btn-primary btn-sm" onclick="openModal('addFeeModal')"><i class="fa fa-plus"></i> Add Fee Item</button>
+<button class="btn btn-warning btn-sm" onclick="emailDefaulters()"><i class="fa fa-envelope"></i> Email Defaulters</button>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="filters">
+  <select id="f-dept" onchange="applyFilters()">
+    <option value="">All Departments</option>
+    {% for d in depts %}<option value="{{ d.code }}" {% if dept_filter==d.code %}selected{% endif %}>{{ d.code }}</option>{% endfor %}
+  </select>
+  <select id="f-sem" onchange="applyFilters()">
+    <option value="">All Semesters</option>
+    {% for s in range(1,9) %}<option value="{{ s }}" {% if sem_filter==s|string %}selected{% endif %}>Sem {{ s }}</option>{% endfor %}
+  </select>
+</div>
+
+<!-- Summary -->
+{% if summary %}
+<div class="stats-grid">
+  {% for row in summary %}
+  <div class="stat-card">
+    <div class="stat-icon si-blue"><i class="fa fa-indian-rupee-sign"></i></div>
+    <div>
+      <div class="stat-val">₹{{ "{:,.0f}".format(row.total_collected) }}</div>
+      <div class="stat-label">{{ row.label }} Collected</div>
+      <div class="stat-sub">Expected: ₹{{ "{:,.0f}".format(row.total_expected) }}</div>
+      <div class="progress-bar" style="margin-top:8px;">
+        <div class="progress-fill pf-blue" style="width:{{ [(row.total_collected/row.total_expected*100)|round(0),100]|min if row.total_expected else 0 }}%"></div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="grid-2" style="margin-bottom:20px;">
+  <!-- Fee Structure -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">Fee Structure</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Type</th><th>Label</th><th>Dept</th><th>Sem</th><th>Amount</th><th>Due Date</th>{% if role in ('admin','hod') %}<th></th>{% endif %}</tr></thead>
+        <tbody>
+          {% for f in structures %}
+          <tr>
+            <td><span class="badge badge-blue">{{ f.fee_type|title }}</span></td>
+            <td>{{ f.label }}</td>
+            <td>{{ f.department }}</td>
+            <td>Sem {{ f.semester }}</td>
+            <td><strong>₹{{ "{:,.0f}".format(f.amount) }}</strong></td>
+            <td style="font-size:12px;color:var(--muted);">{{ f.due_date }}</td>
+            {% if role in ('admin','hod') %}
+            <td><button class="btn btn-danger btn-sm btn-icon" onclick="delFeeStruct({{ f.id }})"><i class="fa fa-trash"></i></button></td>
+            {% endif %}
+          </tr>
+          {% else %}
+          <tr><td colspan="7" style="text-align:center;color:var(--muted);">No fee structure defined</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Defaulters -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">Fee Defaulters</span><span class="badge badge-red">{{ defaulters|length }}</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>USN</th><th>Dept</th><th>Balance</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for d in defaulters %}
+          <tr>
+            <td><strong>{{ d.name }}</strong></td>
+            <td class="mono" style="font-size:11px;">{{ d.usn }}</td>
+            <td><span class="badge badge-blue">{{ d.department }}</span></td>
+            <td><span class="badge badge-red">₹{{ "{:,.0f}".format(d.balance) }}</span></td>
+            <td><a href="/fees/student/{{ d.id }}" class="btn btn-ghost btn-sm">Pay</a></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" style="text-align:center;color:var(--muted);">🎉 No defaulters!</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ADD FEE STRUCTURE MODAL -->
+<div class="modal-overlay" id="addFeeModal">
+  <div class="modal">
+    <div class="modal-title">Add Fee Structure Item <button class="modal-close" onclick="closeModal('addFeeModal')">✕</button></div>
+    <div class="input-row">
+      <div class="form-group"><label>Department *</label>
+        <select id="fs-dept">{% for d in depts %}<option value="{{ d.code }}">{{ d.code }}</option>{% endfor %}</select>
+      </div>
+      <div class="form-group"><label>Semester *</label>
+        <select id="fs-sem">{% for s in range(1,9) %}<option value="{{ s }}">Sem {{ s }}</option>{% endfor %}</select>
+      </div>
+    </div>
+    <div class="input-row">
+      <div class="form-group"><label>Fee Type *</label>
+        <select id="fs-type">
+          <option value="tuition">Tuition</option><option value="hostel">Hostel</option>
+          <option value="lab">Lab</option><option value="library">Library</option>
+          <option value="exam">Exam</option><option value="misc">Miscellaneous</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Label *</label><input id="fs-label" placeholder="e.g. Tuition Fee 2025-26"></div>
+    </div>
+    <div class="input-row">
+      <div class="form-group"><label>Amount (₹) *</label><input id="fs-amount" type="number" min="0" placeholder="45000"></div>
+      <div class="form-group"><label>Due Date *</label><input id="fs-due" type="date"></div>
+      <div class="form-group"><label>Academic Year</label><input id="fs-year" placeholder="2025-26"></div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px;">
+      <button class="btn btn-ghost" onclick="closeModal('addFeeModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitFeeStruct()"><i class="fa fa-plus"></i> Add</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function applyFilters() {
+  const dept = document.getElementById('f-dept').value;
+  const sem  = document.getElementById('f-sem').value;
+  window.location = `/fees?dept=${dept}&sem=${sem}`;
+}
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+async function submitFeeStruct() {
+  const d = await apiPost('/fees/structure/add', {
+    dept:          document.getElementById('fs-dept').value,
+    sem:           document.getElementById('fs-sem').value,
+    fee_type:      document.getElementById('fs-type').value,
+    label:         document.getElementById('fs-label').value,
+    amount:        document.getElementById('fs-amount').value,
+    due_date:      document.getElementById('fs-due').value,
+    academic_year: document.getElementById('fs-year').value,
+  });
+  if (d.success) { toast('Fee item added!','success'); setTimeout(()=>location.reload(),700); }
+  else toast('Failed','error');
+}
+async function delFeeStruct(id) {
+  confirmDelete(`/fees/structure/delete/${id}`, 'Remove this fee item?', () => location.reload());
+}
+async function emailDefaulters() {
+  const dept = document.getElementById('f-dept').value;
+  const sem  = document.getElementById('f-sem').value;
+  const d    = await apiPost('/fees/defaulters/email', {dept, sem});
+  toast(`Sent ${d.sent} reminder emails`, 'success');
+}
+</script>
+{% endblock %}

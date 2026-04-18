@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block page_title %}Settings{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+
+  <!-- ── Change Password ─────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title"><i class="fa-solid fa-lock" style="color:var(--primary);margin-right:8px"></i>Change Password</div>
+        <div class="card-sub">Update your account password</div>
+      </div>
+    </div>
+    <div id="pw-alert" style="display:none" class="alert"></div>
+    <div class="form-group">
+      <label class="form-label">Current Password</label>
+      <input type="password" id="old-pw" class="form-control" placeholder="••••••••"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">New Password</label>
+      <input type="password" id="new-pw" class="form-control" placeholder="Min 4 characters"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Confirm New Password</label>
+      <input type="password" id="conf-pw" class="form-control" placeholder="Repeat new password"/>
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="changePassword()">
+      <i class="fa-solid fa-key"></i> Update Password
+    </button>
+  </div>
+
+  <!-- ── Profile Info ────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title"><i class="fa-solid fa-user-circle" style="color:var(--accent);margin-right:8px"></i>Profile</div>
+        <div class="card-sub">Your account details</div>
+      </div>
+    </div>
+    <div style="text-align:center;padding:20px 0 28px">
+      <div style="width:70px;height:70px;border-radius:50%;
+        background:linear-gradient(135deg,var(--primary),var(--primary2));
+        display:flex;align-items:center;justify-content:center;
+        font-size:28px;font-weight:800;color:white;margin:0 auto 14px">
+        {{ user.username[0]|upper }}
+      </div>
+      <div style="font-size:20px;font-weight:800">{{ user.username }}</div>
+      <div style="margin-top:8px">
+        <span class="badge {% if user.role=='admin' %}badge-red{% elif user.role=='teacher' %}badge-yellow{% else %}badge-blue{% endif %}">
+          {{ user.role }}
+        </span>
+      </div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px">
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+        <span style="color:var(--muted)">User ID</span>
+        <span style="font-family:'DM Mono',monospace">#{{ user.id }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+        <span style="color:var(--muted)">Username</span>
+        <span style="font-weight:600">{{ user.username }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px">
+        <span style="color:var(--muted)">Role</span>
+        <span style="font-weight:600;text-transform:capitalize">{{ user.role }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Email Setup Card ───────────────────────── -->
+  <div class="card" style="grid-column:1/3">
+    <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+      <div style="width:50px;height:50px;border-radius:14px;
+        background:linear-gradient(135deg,rgba(79,142,247,.15),rgba(99,102,241,.1));
+        border:1px solid rgba(79,142,247,.2);
+        display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">
+        📧
+      </div>
+      <div style="flex:1">
+        <div style="font-size:15px;font-weight:700;margin-bottom:4px">Email &amp; Credentials</div>
+        <div style="font-size:13px;color:var(--muted)">
+          Configure SMTP, send login credentials to students, view delivery history, and bulk-email entire classes.
+        </div>
+      </div>
+      <a href="/settings/email" class="btn btn-primary" style="flex-shrink:0">
+        <i class="fa-solid fa-envelope-open-text"></i> Open Email Settings →
+      </a>
+    </div>
+  </div>
+
+  <!-- ── Export Data ─────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title"><i class="fa-solid fa-file-export" style="color:var(--green);margin-right:8px"></i>Export Data</div>
+        <div class="card-sub">Download reports as CSV files</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;
+        padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:12px">
+        <div>
+          <div style="font-size:13px;font-weight:600">Attendance Log</div>
+          <div style="font-size:12px;color:var(--muted)">Full attendance history</div>
+        </div>
+        <a href="/export/attendance" class="btn btn-success btn-sm">
+          <i class="fa-solid fa-download"></i> CSV
+        </a>
+      </div>
+      {% for c in ['10A','10B','11A','11B'] %}
+      <div style="display:flex;align-items:center;justify-content:space-between;
+        padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:12px">
+        <div>
+          <div style="font-size:13px;font-weight:600">Class {{ c }} Attendance</div>
+          <div style="font-size:12px;color:var(--muted)">Filtered by class</div>
+        </div>
+        <a href="/export/attendance?class={{ c }}" class="btn btn-ghost btn-sm">
+          <i class="fa-solid fa-download"></i> CSV
+        </a>
+      </div>
+      {% endfor %}
+      <div style="display:flex;align-items:center;justify-content:space-between;
+        padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:12px">
+        <div>
+          <div style="font-size:13px;font-weight:600">Student Registry</div>
+          <div style="font-size:12px;color:var(--muted)">All students with stats</div>
+        </div>
+        <a href="/export/students" class="btn btn-success btn-sm">
+          <i class="fa-solid fa-download"></i> CSV
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Subject Management ─────────────────── -->
+  {% if role in ['admin','teacher'] %}
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title"><i class="fa-solid fa-book" style="color:var(--yellow);margin-right:8px"></i>Subjects</div>
+        <div class="card-sub">Manage school subjects</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="openModal('addSubjModal')">
+        <i class="fa-solid fa-plus"></i> Add
+      </button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px" id="subj-list">
+      {% for s in subjects %}
+      <div id="subj-{{ s.id }}" style="display:flex;align-items:center;gap:10px;
+        padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px">
+        <div style="width:32px;height:32px;border-radius:9px;
+          background:linear-gradient(135deg,hsl({{ loop.index0*45 % 360 }},60%,40%),hsl({{ (loop.index0*45+60)%360 }},60%,30%));
+          display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white">
+          {{ s.code[:2] if s.code else s.name[:2] }}
+        </div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:600">{{ s.name }}</div>
+          <div style="font-size:11px;color:var(--muted)">{{ s.teacher }}</div>
+        </div>
+        <span class="badge badge-blue" style="font-size:9px">{{ s.code }}</span>
+        <button class="btn btn-danger btn-sm" onclick="deleteSubject({{ s.id }})">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+      </div>
+      {% else %}
+      <div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">
+        No subjects added yet
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- Add Subject Modal -->
+<div class="modal-overlay" id="addSubjModal">
+  <div class="modal">
+    <div class="modal-title">
+      <i class="fa-solid fa-book" style="color:var(--yellow)"></i>
+      Add Subject
+      <button class="modal-close" onclick="closeModal('addSubjModal')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Subject Name *</label>
+      <input type="text" id="subj-name" class="form-control" placeholder="Mathematics"/>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Code</label>
+        <input type="text" id="subj-code" class="form-control" placeholder="MATH"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Teacher</label>
+        <input type="text" id="subj-teacher" class="form-control" placeholder="Mr. Sharma"/>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal('addSubjModal')">Cancel</button>
+      <button class="btn btn-primary" style="flex:1" onclick="addSubject()">
+        <i class="fa-solid fa-plus"></i> Add Subject
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function changePassword() {
+  const oldPw = document.getElementById('old-pw').value;
+  const newPw = document.getElementById('new-pw').value;
+  const confPw = document.getElementById('conf-pw').value;
+  const alert  = document.getElementById('pw-alert');
+
+  if (!oldPw || !newPw) {
+    alert.className='alert alert-error'; alert.style.display='flex';
+    alert.textContent='⚠ Fill in all fields.'; return;
+  }
+  if (newPw !== confPw) {
+    alert.className='alert alert-error'; alert.style.display='flex';
+    alert.textContent='⚠ New passwords do not match.'; return;
+  }
+  if (newPw.length < 4) {
+    alert.className='alert alert-error'; alert.style.display='flex';
+    alert.textContent='⚠ Password must be at least 4 characters.'; return;
+  }
+  fetch('/settings/change-password', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({old_pw: oldPw, new_pw: newPw})
+  }).then(r=>r.json()).then(d => {
+    if (d.success) {
+      alert.className='alert alert-success'; alert.style.display='flex';
+      alert.textContent='✅ Password updated successfully!';
+      document.getElementById('old-pw').value='';
+      document.getElementById('new-pw').value='';
+      document.getElementById('conf-pw').value='';
+    } else {
+      alert.className='alert alert-error'; alert.style.display='flex';
+      alert.textContent='⚠ ' + d.error;
+    }
+  });
+}
+
+function addSubject() {
+  const name    = document.getElementById('subj-name').value.trim();
+  const code    = document.getElementById('subj-code').value.trim().toUpperCase();
+  const teacher = document.getElementById('subj-teacher').value.trim();
+  if (!name) { showToast('Subject name required','error'); return; }
+  fetch('/settings/subjects/add', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name, code, teacher})
+  }).then(r=>r.json()).then(d => {
+    if (d.success) { closeModal('addSubjModal'); showToast('Subject added!','success'); location.reload(); }
+  });
+}
+
+function deleteSubject(id) {
+  if (!confirm('Delete this subject?')) return;
+  fetch('/settings/subjects/delete/'+id, {method:'POST'}).then(()=>{
+    const el = document.getElementById('subj-'+id);
+    if (el) { el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }
+    showToast('Subject removed','info');
+  });
+}
+</script>
+{% endblock %}

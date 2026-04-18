@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}Parent Portal — {{ student.name }}{% endblock %}
+{% block page_title %}Parent Portal{% endblock %}
+{% block page_sub %}Monitoring {{ student.name }} · {{ student.department }} Sem {{ student.semester }}{% endblock %}
+
+{% block content %}
+<!-- Student Info Banner -->
+<div class="card" style="margin-bottom:24px;background:linear-gradient(135deg,rgba(37,99,235,.15),rgba(37,99,235,.05));">
+  <div class="card-body" style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+    <div style="width:56px;height:56px;background:var(--accent);border-radius:14px;display:flex;align-items:center;
+                justify-content:center;font-size:22px;font-weight:900;color:white;flex-shrink:0;">
+      {{ student.name[0].upper() }}
+    </div>
+    <div style="flex:1;">
+      <h2 style="font-size:20px;font-weight:800;margin-bottom:4px;">{{ student.name }}</h2>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <span class="badge badge-blue">{{ student.usn }}</span>
+        <span class="badge badge-purple">{{ student.department }}</span>
+        <span class="badge badge-cyan">Sem {{ student.semester }}</span>
+        <span class="badge badge-gray">Section {{ student.section }}</span>
+      </div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:28px;font-weight:800;color:{% if att_rep.percentage>=75 %}var(--green){% elif att_rep.percentage>=65 %}var(--yellow){% else %}var(--red){% endif %};">
+        {{ att_rep.percentage or 0 }}%
+      </div>
+      <div style="font-size:12px;color:var(--muted);">Overall Attendance</div>
+    </div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('att',this)">📋 Attendance</button>
+  <button class="tab"        onclick="switchTab('marks',this)">📝 Marks</button>
+  <button class="tab"        onclick="switchTab('fees',this)">💰 Fees</button>
+  <button class="tab"        onclick="switchTab('ann',this)">📢 Announcements</button>
+</div>
+
+<!-- ATTENDANCE TAB -->
+<div id="tab-att">
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><span class="card-title">Subject-wise Attendance</span></div>
+    <div class="card-body" style="padding:0;">
+      <table>
+        <thead><tr><th>Subject</th><th>Code</th><th>Sem</th><th>Classes</th><th>Attended</th><th>%</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for sub in subj_att %}
+          <tr>
+            <td><strong>{{ sub.name }}</strong></td>
+            <td class="mono" style="font-size:12px;">{{ sub.code }}</td>
+            <td>{{ sub.semester }}</td>
+            <td>{{ sub.total_classes }}</td>
+            <td>{{ sub.attended }}</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div class="progress-bar" style="width:80px;">
+                  <div class="progress-fill {% if sub.percentage>=75 %}pf-green{% elif sub.percentage>=65 %}pf-yellow{% else %}pf-red{% endif %}" style="width:{{ sub.percentage }}%"></div>
+                </div>
+                <span style="font-size:12px;font-weight:700;">{{ sub.percentage }}%</span>
+              </div>
+            </td>
+            <td>
+              {% if sub.shortage %}<span class="badge badge-red">⚠️ Shortage</span>
+              {% elif sub.total_classes == 0 %}<span class="badge badge-gray">No Data</span>
+              {% else %}<span class="badge badge-green">✅ Good</span>{% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" style="text-align:center;color:var(--muted);">No attendance data yet</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- MARKS TAB -->
+<div id="tab-marks" style="display:none;">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Exam Results</span></div>
+    <div class="card-body" style="padding:0;">
+      <table>
+        <thead><tr><th>Subject</th><th>Exam</th><th>Type</th><th>Date</th><th>Marks</th><th>Max</th><th>%</th><th>Grade</th></tr></thead>
+        <tbody>
+          {% for m in marks %}
+          <tr>
+            <td><strong>{{ m.subject_name }}</strong></td>
+            <td>{{ m.title }}</td>
+            <td><span class="badge badge-blue">{{ m.exam_type|title }}</span></td>
+            <td style="font-size:12px;color:var(--muted);">{{ m.exam_date }}</td>
+            <td><strong>{{ m.marks }}</strong></td>
+            <td style="color:var(--muted);">{{ m.max_marks }}</td>
+            <td>
+              {% set pct = (m.marks/m.max_marks*100)|round(1) if m.max_marks else 0 %}
+              <span class="badge {% if pct>=75 %}badge-green{% elif pct>=50 %}badge-yellow{% else %}badge-red{% endif %}">{{ pct }}%</span>
+            </td>
+            <td><span class="badge badge-purple">{{ m.grade or '—' }}</span></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" style="text-align:center;color:var(--muted);">No marks entered yet</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- FEES TAB -->
+<div id="tab-fees" style="display:none;">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Fee Status</span></div>
+    <div class="card-body" style="padding:0;">
+      <table>
+        <thead><tr><th>Label</th><th>Amount</th><th>Paid</th><th>Balance</th><th>Due Date</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for f in fees %}
+          <tr>
+            <td>{{ f.label }}</td>
+            <td>₹{{ "{:,.0f}".format(f.amount) }}</td>
+            <td>₹{{ "{:,.0f}".format(f.amount_paid) }}</td>
+            <td>
+              <span class="badge {% if f.balance<=0 %}badge-green{% elif f.balance<f.amount %}badge-yellow{% else %}badge-red{% endif %}">
+                ₹{{ "{:,.0f}".format(f.balance) }}
+              </span>
+            </td>
+            <td style="font-size:12px;color:var(--muted);">{{ f.due_date }}</td>
+            <td><span class="badge {% if f.status=='paid' %}badge-green{% elif f.status=='partial' %}badge-yellow{% else %}badge-red{% endif %}">{{ f.status|title }}</span></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" style="text-align:center;color:var(--muted);">No fee records</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ANNOUNCEMENTS TAB -->
+<div id="tab-ann" style="display:none;">
+  {% if announcements %}
+  {% for a in announcements %}
+  <div class="card" style="margin-bottom:12px;">
+    <div class="card-body">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;">
+        <div>
+          {% if a.pinned %}<span class="badge badge-yellow" style="margin-right:6px;">📌 Pinned</span>{% endif %}
+          <strong style="font-size:15px;">{{ a.title }}</strong>
+        </div>
+        <span style="font-size:11px;color:var(--muted);">{{ a.created_at[:10] }}</span>
+      </div>
+      <p style="color:var(--muted);font-size:13.5px;line-height:1.6;">{{ a.body }}</p>
+      <div style="margin-top:8px;font-size:11px;color:var(--muted);">By {{ a.author }}</div>
+    </div>
+  </div>
+  {% endfor %}
+  {% else %}
+  <div class="empty-state"><i class="fa fa-bullhorn"></i><h3>No Announcements</h3><p>Nothing posted yet.</p></div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function switchTab(name, btn) {
+  ['att','marks','fees','ann'].forEach(t => {
+    document.getElementById('tab-'+t).style.display = t===name ? '' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+</script>
+{% endblock %}

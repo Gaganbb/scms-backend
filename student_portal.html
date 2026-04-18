@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Student Portal — SCMS Pro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root {
+  --bg:#060b18;--surface:#0d1525;--card:#111d35;--border:#1e2d4a;
+  --primary:#4f8ef7;--primary2:#6366f1;--accent:#22d3ee;
+  --green:#10b981;--red:#f43f5e;--yellow:#f59e0b;--text:#e2eaff;--muted:#6b82a8;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.topbar{
+  height:60px;padding:0 28px;display:flex;align-items:center;justify-content:space-between;
+  background:var(--surface);border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:50;
+}
+.brand{font-size:16px;font-weight:800;display:flex;align-items:center;gap:10px}
+.brand-icon{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--primary),var(--primary2));
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:white}
+.logout-btn{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;
+  background:none;border:1px solid var(--border);color:var(--muted);font-size:13px;cursor:pointer;
+  text-decoration:none;font-family:'Outfit',sans-serif;transition:all .2s}
+.logout-btn:hover{border-color:var(--red);color:var(--red)}
+.content{max-width:1100px;margin:0 auto;padding:28px 20px}
+.hero{
+  background:linear-gradient(135deg,rgba(79,142,247,.1),rgba(99,102,241,.08));
+  border:1px solid rgba(79,142,247,.2);border-radius:20px;padding:28px 32px;
+  margin-bottom:24px;display:flex;align-items:center;gap:20px;
+}
+.hero-avatar{
+  width:60px;height:60px;border-radius:50%;
+  background:linear-gradient(135deg,var(--primary),var(--accent));
+  display:flex;align-items:center;justify-content:center;
+  font-size:24px;font-weight:800;color:white;flex-shrink:0;
+}
+.hero-name{font-size:22px;font-weight:800}
+.hero-meta{font-size:14px;color:var(--muted);margin-top:4px}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;text-align:center}
+.stat-v{font-size:28px;font-weight:800;margin-bottom:4px}
+.stat-l{font-size:12px;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px}
+.card-title{font-size:15px;font-weight:700;margin-bottom:16px}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;
+  font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.badge-green{background:rgba(16,185,129,.12);color:var(--green);border:1px solid rgba(16,185,129,.25)}
+.badge-red{background:rgba(244,63,94,.12);color:var(--red);border:1px solid rgba(244,63,94,.25)}
+.badge-blue{background:rgba(79,142,247,.12);color:var(--primary);border:1px solid rgba(79,142,247,.25)}
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;
+  padding:10px 14px;border-bottom:1px solid var(--border);text-align:left}
+td{padding:11px 14px;border-bottom:1px solid rgba(30,45,74,.4);font-size:13px}
+tr:last-child td{border-bottom:none}
+.tt-table{width:100%;border-collapse:collapse;min-width:600px}
+.tt-table th{background:var(--surface);font-size:11px;font-weight:700;color:var(--muted);
+  padding:10px;text-align:center;border:1px solid var(--border)}
+.tt-table td{padding:4px;border:1px solid var(--border);height:64px;vertical-align:top;min-width:100px}
+.tt-cell{background:linear-gradient(135deg,rgba(79,142,247,.08),rgba(99,102,241,.05));
+  border-radius:8px;padding:7px 9px;height:100%;border-left:3px solid var(--primary)}
+.tt-cell .s{font-size:11px;font-weight:700}
+.tt-cell .t{font-size:10px;color:var(--muted)}
+.tt-cell.today{border-left-color:var(--green);background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(16,185,129,.05))}
+.today-label{display:inline-flex;padding:2px 6px;border-radius:5px;font-size:9px;font-weight:700;
+  background:rgba(16,185,129,.2);color:var(--green);margin-left:4px}
+.empty{height:100%;display:flex;align-items:center;justify-content:center;opacity:.2;font-size:18px}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><div class="brand-icon">SC</div> SCMS Pro</div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <span style="font-size:13px;color:var(--muted)">{{ username }}</span>
+    <a href="/logout" class="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+  </div>
+</header>
+
+<div class="content">
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-avatar">{{ student.name[0] }}</div>
+    <div>
+      <div class="hero-name">{{ student.name }}</div>
+      <div class="hero-meta">Class {{ student.class }} · Student Portal</div>
+    </div>
+    <div style="margin-left:auto;text-align:right">
+      <div style="font-size:36px;font-weight:800;color:{% if report.percentage>=75 %}var(--green){% elif report.percentage>=60 %}var(--yellow){% else %}var(--red){% endif %}">
+        {{ report.percentage or 0 }}%
+      </div>
+      <div style="font-size:12px;color:var(--muted)">Overall Attendance</div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-v" style="color:var(--green)">{{ report.attended or 0 }}</div>
+      <div class="stat-l">Days Present</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-v" style="color:var(--red)">{{ report.absent_count or 0 }}</div>
+      <div class="stat-l">Days Absent</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-v" style="color:var(--primary)">{{ report.total_days or 0 }}</div>
+      <div class="stat-l">Total Classes</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-v" style="color:{% if report.percentage>=75 %}var(--green){% elif report.percentage>=60 %}var(--yellow){% else %}var(--red){% endif %}">
+        {% if report.percentage>=75 %}Good{% elif report.percentage>=60 %}Avg{% else %}Low{% endif %}
+      </div>
+      <div class="stat-l">Status</div>
+    </div>
+  </div>
+
+  <!-- Charts + History -->
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Attendance Trend (Last 30 days)</div>
+      <canvas id="histChart" height="140"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">Recent Attendance</div>
+      <table>
+        <thead><tr><th>Date</th><th>Status</th><th>Time</th></tr></thead>
+        <tbody>
+          {% for h in history[:10] %}
+          <tr>
+            <td style="font-family:'DM Mono',monospace;font-size:12px">{{ h.date }}</td>
+            <td><span class="badge {% if h.status=='Present' %}badge-green{% else %}badge-red{% endif %}">{{ h.status }}</span></td>
+            <td style="color:var(--muted);font-size:12px">{{ h.time or '—' }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" style="text-align:center;color:var(--muted);padding:20px">No records yet</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Timetable -->
+  <div class="card">
+    <div class="card-title">My Timetable — Class {{ student.class }}</div>
+    <div style="overflow-x:auto">
+      <table class="tt-table">
+        <thead>
+          <tr>
+            <th>Period</th>
+            {% for day in days %}
+            <th>{{ day }}{% if day==today_day %}<span class="today-label">TODAY</span>{% endif %}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in periods %}
+          <tr>
+            <td style="text-align:center;background:var(--surface);font-size:11px;font-weight:700;color:var(--muted)">P{{ p }}</td>
+            {% for day in days %}
+            {% set cell = grid[day][p] %}
+            <td>
+              {% if cell %}
+              <div class="tt-cell {% if day==today_day %}today{% endif %}">
+                <div class="s">{{ cell.subject }}</div>
+                <div class="t">{{ cell.teacher }}</div>
+                <div class="t" style="color:var(--accent);font-size:9px">{{ cell.time_start }}</div>
+              </div>
+              {% else %}
+              <div class="empty">—</div>
+              {% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const history = {{ history | tojson }};
+const last30 = history.slice(0,30).reverse();
+new Chart(document.getElementById('histChart'), {
+  type: 'line',
+  data: {
+    labels: last30.map(h => h.date.slice(5)),
+    datasets: [{
+      label: 'Present',
+      data: last30.map(h => h.status==='Present' ? 1 : 0),
+      borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,.1)',
+      fill: true, tension: 0.3, pointRadius: 4,
+      pointBackgroundColor: last30.map(h => h.status==='Present' ? '#10b981' : '#f43f5e'),
+    }]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:true,
+    plugins:{legend:{display:false}},
+    scales:{
+      y:{min:0,max:1,ticks:{color:'#6b82a8',callback:v=>v?'P':'A'},grid:{color:'rgba(30,45,74,.5)'}},
+      x:{ticks:{color:'#6b82a8',font:{size:10}},grid:{display:false}}
+    }
+  }
+});
+</script>
+</body>
+</html>

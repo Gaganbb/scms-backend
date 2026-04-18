@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+{% block title %}QR Scanner{% endblock %}
+{% block page_title %}Live QR Scanner{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start">
+
+  <!-- Camera Feed -->
+  <div class="card" style="text-align:center">
+    <div class="card-header">
+      <div>
+        <div class="card-title"><i class="fa-solid fa-camera" style="color:var(--primary);margin-right:8px"></i>Camera Feed</div>
+        <div class="card-sub">Point camera at student QR code</div>
+      </div>
+      <span id="scan-status" class="badge badge-yellow">Initializing…</span>
+    </div>
+
+    <div style="position:relative;border-radius:12px;overflow:hidden;background:#000;margin-bottom:16px">
+      <video id="video" autoplay playsinline muted
+             style="width:100%;display:block;max-height:320px;object-fit:cover"></video>
+      <canvas id="canvas" style="display:none"></canvas>
+
+      <!-- Scan overlay -->
+      <div style="position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center">
+        <div id="scan-frame" style="
+          width:200px;height:200px;border-radius:12px;
+          border:2px solid rgba(79,142,247,.7);
+          box-shadow:0 0 0 4000px rgba(0,0,0,.35);
+          position:relative;
+        ">
+          <!-- Corner markers -->
+          <span style="position:absolute;top:-2px;left:-2px;width:20px;height:20px;border-top:3px solid var(--primary);border-left:3px solid var(--primary);border-radius:3px 0 0 0"></span>
+          <span style="position:absolute;top:-2px;right:-2px;width:20px;height:20px;border-top:3px solid var(--primary);border-right:3px solid var(--primary);border-radius:0 3px 0 0"></span>
+          <span style="position:absolute;bottom:-2px;left:-2px;width:20px;height:20px;border-bottom:3px solid var(--primary);border-left:3px solid var(--primary);border-radius:0 0 0 3px"></span>
+          <span style="position:absolute;bottom:-2px;right:-2px;width:20px;height:20px;border-bottom:3px solid var(--primary);border-right:3px solid var(--primary);border-radius:0 0 3px 0"></span>
+          <!-- Scan line animation -->
+          <div id="scan-line" style="
+            position:absolute;top:0;left:0;right:0;height:2px;
+            background:linear-gradient(90deg,transparent,var(--primary),transparent);
+            animation:scanLine 2s linear infinite;
+          "></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" style="flex:1" id="start-btn" onclick="startCamera()">
+        <i class="fa-solid fa-play"></i> Start Camera
+      </button>
+      <button class="btn btn-danger" style="flex:1" id="stop-btn" onclick="stopCamera()" disabled>
+        <i class="fa-solid fa-stop"></i> Stop
+      </button>
+    </div>
+  </div>
+
+  <!-- Right panel -->
+  <div style="display:flex;flex-direction:column;gap:16px">
+
+    <!-- Manual entry -->
+    <div class="card">
+      <div class="card-title" style="margin-bottom:14px">
+        <i class="fa-solid fa-keyboard" style="color:var(--accent);margin-right:8px"></i>Manual Entry
+      </div>
+      <div style="display:flex;gap:10px">
+        <input type="number" id="manual-id" class="form-control" placeholder="Enter Student ID"
+               style="flex:1" onkeydown="if(event.key==='Enter')markManual()"/>
+        <button class="btn btn-primary" onclick="markManual()">
+          <i class="fa-solid fa-check"></i> Mark Present
+        </button>
+      </div>
+    </div>
+
+    <!-- Last scanned -->
+    <div class="card">
+      <div class="card-title" style="margin-bottom:14px">
+        <i class="fa-solid fa-clock-rotate-left" style="color:var(--green);margin-right:8px"></i>Scan History
+      </div>
+      <div id="scan-log" style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto">
+        <div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">
+          <i class="fa-solid fa-qrcode" style="font-size:28px;display:block;margin-bottom:8px;opacity:.3"></i>
+          No scans yet
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="card" style="padding:16px">
+      <div style="display:flex;justify-content:space-around;text-align:center">
+        <div>
+          <div style="font-size:28px;font-weight:800;color:var(--green)" id="scan-count">0</div>
+          <div style="font-size:12px;color:var(--muted)">Scanned</div>
+        </div>
+        <div style="width:1px;background:var(--border)"></div>
+        <div>
+          <div style="font-size:28px;font-weight:800;color:var(--red)" id="fail-count">0</div>
+          <div style="font-size:12px;color:var(--muted)">Failed</div>
+        </div>
+        <div style="width:1px;background:var(--border)"></div>
+        <div>
+          <div style="font-size:28px;font-weight:800;color:var(--primary)" id="total-scan">0</div>
+          <div style="font-size:12px;color:var(--muted)">Total</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<style>
+@keyframes scanLine {
+  0%   { top: 0; }
+  50%  { top: calc(100% - 2px); }
+  100% { top: 0; }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script>
+let videoStream = null;
+let scanning    = false;
+let scanCount   = 0;
+let failCount   = 0;
+let lastScanned = null;
+let cooldown    = false;
+
+const video  = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const ctx    = canvas.getContext('2d');
+
+async function startCamera() {
+  try {
+    videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:'environment' } });
+    video.srcObject = videoStream;
+    await video.play();
+    scanning = true;
+    document.getElementById('scan-status').textContent = 'Scanning…';
+    document.getElementById('scan-status').className = 'badge badge-green';
+    document.getElementById('start-btn').disabled = true;
+    document.getElementById('stop-btn').disabled  = false;
+    document.getElementById('scan-frame').style.borderColor = 'rgba(16,185,129,.8)';
+    requestAnimationFrame(scanFrame);
+    showToast('Camera started — point at a QR code', 'success');
+  } catch (err) {
+    document.getElementById('scan-status').textContent = 'Camera denied';
+    document.getElementById('scan-status').className = 'badge badge-red';
+    showToast('Camera access denied. Use manual entry.', 'error');
+  }
+}
+
+function stopCamera() {
+  scanning = false;
+  if (videoStream) { videoStream.getTracks().forEach(t => t.stop()); videoStream = null; }
+  video.srcObject = null;
+  document.getElementById('scan-status').textContent = 'Stopped';
+  document.getElementById('scan-status').className = 'badge badge-yellow';
+  document.getElementById('start-btn').disabled = false;
+  document.getElementById('stop-btn').disabled  = true;
+  document.getElementById('scan-frame').style.borderColor = 'rgba(79,142,247,.7)';
+}
+
+function scanFrame() {
+  if (!scanning) return;
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts:'dontInvert' });
+    if (code && code.data && !cooldown) {
+      const id = parseInt(code.data);
+      if (!isNaN(id) && id !== lastScanned) {
+        lastScanned = id;
+        cooldown = true;
+        setTimeout(() => { cooldown = false; lastScanned = null; }, 3000);
+        handleScan(id);
+      }
+    }
+  }
+  requestAnimationFrame(scanFrame);
+}
+
+async function handleScan(id) {
+  document.getElementById('scan-frame').style.borderColor = 'rgba(245,158,11,.9)';
+  // Lookup student
+  let studentName = 'Student #' + id;
+  let studentClass = '';
+  try {
+    const r = await fetch('/api/student/' + id);
+    if (r.ok) {
+      const s = await r.json();
+      if (s.name) { studentName = s.name; studentClass = s.class; }
+    }
+  } catch(e) {}
+
+  // Mark attendance
+  const res = await fetch('/attendance/mark', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({student_id: id, status: 'Present'})
+  });
+  const d = await res.json();
+
+  if (d.success) {
+    scanCount++;
+    document.getElementById('scan-count').textContent = scanCount;
+    document.getElementById('total-scan').textContent = scanCount + failCount;
+    document.getElementById('scan-frame').style.borderColor = 'rgba(16,185,129,.9)';
+    addToLog(studentName, studentClass, '✅ Present', 'var(--green)');
+    showToast(`✅ ${studentName} marked Present`, 'success');
+  } else {
+    failCount++;
+    document.getElementById('fail-count').textContent = failCount;
+    document.getElementById('total-scan').textContent = scanCount + failCount;
+    document.getElementById('scan-frame').style.borderColor = 'rgba(244,63,94,.9)';
+    addToLog('ID #' + id, '', '❌ Failed', 'var(--red)');
+    showToast('Failed to mark student #' + id, 'error');
+  }
+  setTimeout(() => {
+    document.getElementById('scan-frame').style.borderColor = 'rgba(16,185,129,.8)';
+  }, 800);
+}
+
+function addToLog(name, cls, status, color) {
+  const log = document.getElementById('scan-log');
+  const item = document.createElement('div');
+  item.style.cssText = `display:flex;align-items:center;gap:10px;padding:10px 12px;
+    background:var(--surface);border:1px solid var(--border);border-radius:10px;
+    animation:feedIn .3s ease;`;
+  item.innerHTML = `
+    <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));
+      display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;color:white">
+      ${name[0]}
+    </div>
+    <div style="flex:1">
+      <div style="font-size:13px;font-weight:600">${name}</div>
+      <div style="font-size:11px;color:var(--muted)">${cls}</div>
+    </div>
+    <div style="font-size:12px;font-weight:600;color:${color}">${status}</div>
+    <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace">
+      ${new Date().toTimeString().slice(0,8)}
+    </div>`;
+  // Remove empty state
+  if (log.querySelector('div[style*="No scans"]')) log.innerHTML = '';
+  log.prepend(item);
+}
+
+function markManual() {
+  const id = parseInt(document.getElementById('manual-id').value);
+  if (!id || isNaN(id)) { showToast('Enter a valid student ID', 'error'); return; }
+  handleScan(id);
+  document.getElementById('manual-id').value = '';
+}
+</script>
+{% endblock %}

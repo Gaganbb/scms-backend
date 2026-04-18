@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Attendance Sheet — {{ today }}</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=DM+Mono&display=swap');
+@media print {
+  .no-print { display:none!important; }
+  body { background:white!important; }
+  .page-break { page-break-before: always; }
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'Outfit',sans-serif; background:#f1f5f9; color:#1e293b; }
+.no-print {
+  position:fixed; top:16px; right:16px; display:flex; gap:10px; z-index:100;
+}
+.btn-print {
+  padding:10px 20px; border-radius:10px; font-family:'Outfit',sans-serif;
+  font-size:14px; font-weight:700; cursor:pointer; border:none;
+  background:#4f8ef7; color:white; display:flex; align-items:center; gap:8px;
+}
+.btn-back {
+  padding:10px 20px; border-radius:10px; font-family:'Outfit',sans-serif;
+  font-size:14px; font-weight:600; cursor:pointer; border:1px solid #cbd5e1;
+  background:white; color:#475569; text-decoration:none; display:flex; align-items:center; gap:8px;
+}
+.page {
+  max-width:900px; margin:30px auto; background:white;
+  border-radius:12px; overflow:hidden;
+  box-shadow:0 4px 24px rgba(0,0,0,.08);
+}
+.header {
+  padding:28px 36px 24px;
+  border-bottom:2px solid #e2e8f0;
+  display:flex; align-items:flex-start; justify-content:space-between;
+}
+.school-name { font-size:22px; font-weight:800; color:#1e293b; margin-bottom:4px; }
+.school-sub  { font-size:13px; color:#64748b; }
+.header-right { text-align:right; }
+.header-date { font-size:14px; font-weight:700; color:#1e293b; margin-bottom:4px; }
+.header-class { font-size:20px; font-weight:800; color:#4f8ef7; }
+.stats-bar {
+  padding:14px 36px; background:#f8fafc; border-bottom:1px solid #e2e8f0;
+  display:flex; gap:32px; align-items:center;
+}
+.stat-item { text-align:center; }
+.stat-n { font-size:22px; font-weight:800; }
+.stat-l { font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.5px; }
+.stat-present { color:#10b981; }
+.stat-absent  { color:#f43f5e; }
+.stat-total   { color:#4f8ef7; }
+.stat-pct     { color:#f59e0b; }
+table { width:100%; border-collapse:collapse; }
+thead { background:#f8fafc; }
+th {
+  padding:12px 16px; text-align:left; font-size:11px; font-weight:700;
+  color:#64748b; text-transform:uppercase; letter-spacing:.6px;
+  border-bottom:2px solid #e2e8f0;
+}
+td { padding:12px 16px; border-bottom:1px solid #f1f5f9; font-size:13px; }
+tr:hover td { background:#f8fafc; }
+.badge {
+  display:inline-flex; align-items:center; padding:4px 10px;
+  border-radius:20px; font-size:11px; font-weight:700; letter-spacing:.5px;
+}
+.present { background:#dcfce7; color:#166534; }
+.absent  { background:#fee2e2; color:#991b1b; }
+.class-badge { background:#dbeafe; color:#1d4ed8; }
+.signature-section {
+  padding:24px 36px;
+  display:grid; grid-template-columns:1fr 1fr 1fr; gap:24px;
+  border-top:2px solid #e2e8f0;
+}
+.sig-box { text-align:center; }
+.sig-line { border-bottom:1px solid #cbd5e1; margin-bottom:8px; padding-bottom:36px; }
+.sig-label { font-size:11px; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:.5px; }
+.footer {
+  text-align:center; padding:12px; background:#f8fafc;
+  border-top:1px solid #e2e8f0; font-size:11px; color:#94a3b8;
+  font-family:'DM Mono',monospace;
+}
+</style>
+</head>
+<body>
+
+<div class="no-print">
+  <a href="/attendance{% if cls_filter %}?class={{ cls_filter }}{% endif %}" class="btn-back">
+    ← Back
+  </a>
+  <button class="btn-print" onclick="window.print()">🖨 Print / Save PDF</button>
+</div>
+
+{% set present_cnt = today_data | selectattr('status','eq','Present') | list | length %}
+{% set absent_cnt  = today_data | length - present_cnt %}
+{% set pct = ((present_cnt / today_data|length * 100) if today_data|length else 0)|round(1) %}
+
+<div class="page">
+  <div class="header">
+    <div>
+      <div class="school-name">⚡ SCMS Pro</div>
+      <div class="school-sub">Smart Classroom Management System</div>
+      <div class="school-sub" style="margin-top:6px;font-weight:600;color:#4f8ef7">Daily Attendance Register</div>
+    </div>
+    <div class="header-right">
+      <div class="header-date">{{ today }}</div>
+      {% if cls_filter %}
+      <div class="header-class">Class {{ cls_filter }}</div>
+      {% else %}
+      <div class="header-class">All Classes</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-item"><div class="stat-n stat-total">{{ today_data|length }}</div><div class="stat-l">Total</div></div>
+    <div class="stat-item"><div class="stat-n stat-present">{{ present_cnt }}</div><div class="stat-l">Present</div></div>
+    <div class="stat-item"><div class="stat-n stat-absent">{{ absent_cnt }}</div><div class="stat-l">Absent</div></div>
+    <div class="stat-item"><div class="stat-n stat-pct">{{ pct }}%</div><div class="stat-l">Rate</div></div>
+    <div style="margin-left:auto;font-size:12px;color:#94a3b8;font-family:'DM Mono',monospace">
+      Generated: {{ today }}
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Student Name</th>
+        <th>Class</th>
+        <th>Status</th>
+        <th>Time Marked</th>
+        <th>Signature</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in today_data %}
+      <tr>
+        <td style="color:#94a3b8;font-family:'DM Mono',monospace">{{ loop.index }}</td>
+        <td style="font-weight:600">{{ s.name }}</td>
+        <td><span class="badge class-badge">{{ s.class }}</span></td>
+        <td>
+          <span class="badge {% if s.status=='Present' %}present{% else %}absent{% endif %}">
+            {% if s.status=='Present' %}✓ Present{% else %}✗ Absent{% endif %}
+          </span>
+        </td>
+        <td style="font-family:'DM Mono',monospace;font-size:12px;color:#64748b">{{ s.time or '—' }}</td>
+        <td style="border-bottom:1px dashed #cbd5e1;min-width:100px">&nbsp;</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="signature-section">
+    <div class="sig-box">
+      <div class="sig-line"></div>
+      <div class="sig-label">Class Teacher</div>
+    </div>
+    <div class="sig-box">
+      <div class="sig-line"></div>
+      <div class="sig-label">Principal</div>
+    </div>
+    <div class="sig-box">
+      <div class="sig-line"></div>
+      <div class="sig-label">Date</div>
+    </div>
+  </div>
+
+  <div class="footer">SCMS Pro · Attendance Record · {{ today }} · Total {{ today_data|length }} students</div>
+</div>
+
+</body>
+</html>

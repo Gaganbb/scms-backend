@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}Enter Marks — {{ exam.title }}{% endblock %}
+{% block page_title %}{{ exam.title }}{% endblock %}
+{% block page_sub %}{{ exam.subject_name }} · {{ exam.department }} Sem {{ exam.semester }} · Max: {{ exam.max_marks }}{% endblock %}
+
+{% block topbar_actions %}
+<button class="btn btn-success" onclick="saveAllMarks()"><i class="fa fa-floppy-disk"></i> Save All Marks</button>
+<a href="/exams" class="btn btn-ghost btn-sm"><i class="fa fa-arrow-left"></i> Back</a>
+{% endblock %}
+
+{% block content %}
+<div class="alert alert-info" style="margin-bottom:20px;">
+  <i class="fa fa-circle-info"></i>
+  Enter marks out of <strong>{{ exam.max_marks }}</strong>. Grade is auto-calculated or you can override it.
+  Press <strong>Tab</strong> to move between cells quickly.
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Mark Entry — {{ students|length }} Students</span>
+    <div style="display:flex;gap:8px;">
+      <input type="text" placeholder="Search…" id="srch" oninput="filterMarks()" style="width:160px;padding:6px 10px;font-size:12px;">
+      <button class="btn btn-ghost btn-sm" onclick="setAll()">Set All</button>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>#</th><th>Name</th><th>USN</th><th>Section</th>
+            <th>Marks (/ {{ exam.max_marks }})</th><th>Grade</th><th>Remarks</th><th>Status</th></tr>
+      </thead>
+      <tbody id="marksBody">
+        {% for s in students %}
+        {% set m = existing.get(s.id, {}) %}
+        <tr data-sid="{{ s.id }}" data-name="{{ s.name|lower }}">
+          <td style="color:var(--muted);">{{ loop.index }}</td>
+          <td><strong>{{ s.name }}</strong></td>
+          <td class="mono" style="font-size:12px;">{{ s.usn }}</td>
+          <td>{{ s.section }}</td>
+          <td>
+            <input type="number" class="marks-input" data-sid="{{ s.id }}"
+                   min="0" max="{{ exam.max_marks }}" step="0.5"
+                   value="{{ m.marks if m else '' }}"
+                   placeholder="—"
+                   oninput="autoGrade(this, {{ exam.max_marks }})"
+                   style="width:90px;text-align:center;">
+          </td>
+          <td>
+            <select class="grade-sel" data-sid="{{ s.id }}" style="width:80px;">
+              {% for g in ['O','A+','A','B+','B','C','D','F','AB'] %}
+              <option {% if m.grade==g %}selected{% endif %}>{{ g }}</option>
+              {% endfor %}
+            </select>
+          </td>
+          <td>
+            <input class="remarks-input" data-sid="{{ s.id }}"
+                   placeholder="Optional…" value="{{ m.remarks or '' }}"
+                   style="width:140px;font-size:12px;">
+          </td>
+          <td id="saved-{{ s.id }}">
+            {% if m %}<span class="badge badge-green">Saved</span>
+            {% else %}<span class="badge badge-gray">Pending</span>{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8"><div class="empty-state"><i class="fa fa-users"></i><h3>No Students</h3><p>No students found for {{ exam.department }} Sem {{ exam.semester }}.</p></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Grade lookup table (percentage-based)
+const GRADES = [[90,'O'],[80,'A+'],[70,'A'],[60,'B+'],[50,'B'],[40,'C'],[35,'D'],[0,'F']];
+function autoGrade(input, maxMarks) {
+  const val = parseFloat(input.value);
+  if (isNaN(val)) return;
+  const pct = (val / maxMarks) * 100;
+  const grade = GRADES.find(g => pct >= g[0]);
+  const row = input.closest('tr');
+  const sel = row.querySelector('.grade-sel');
+  if (grade) sel.value = grade[1];
+}
+
+function filterMarks() {
+  const q = document.getElementById('srch').value.toLowerCase();
+  document.querySelectorAll('#marksBody tr[data-name]').forEach(r => {
+    r.style.display = r.dataset.name.includes(q) ? '' : 'none';
+  });
+}
+
+async function saveAllMarks() {
+  const rows = document.querySelectorAll('#marksBody tr[data-sid]');
+  const payload = [];
+  rows.forEach(r => {
+    const sid     = r.dataset.sid;
+    const marks   = r.querySelector('.marks-input').value;
+    const grade   = r.querySelector('.grade-sel').value;
+    const remarks = r.querySelector('.remarks-input').value;
+    if (marks !== '') payload.push({student_id: parseInt(sid), marks: parseFloat(marks), grade, remarks});
+  });
+  if (!payload.length) { toast('No marks to save', 'info'); return; }
+  const d = await apiPost(`/exams/{{ exam.id }}/marks/save`, payload);
+  if (d.success) {
+    toast(`Saved ${d.saved} marks!`, 'success');
+    payload.forEach(p => {
+      const cell = document.getElementById('saved-'+p.student_id);
+      if (cell) cell.innerHTML = '<span class="badge badge-green">Saved</span>';
+    });
+  } else toast('Failed to save', 'error');
+}
+
+function setAll() {
+  const val = prompt(`Set marks for ALL students (out of {{ exam.max_marks }}):`);
+  if (val === null || val === '') return;
+  document.querySelectorAll('.marks-input').forEach(inp => {
+    inp.value = val;
+    autoGrade(inp, {{ exam.max_marks }});
+  });
+}
+</script>
+{% endblock %}

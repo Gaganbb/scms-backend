@@ -1,0 +1,469 @@
+{% extends "base.html" %}
+{% block title %}Email Settings{% endblock %}
+{% block page_title %}Email & Credentials{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+
+  <!-- ── SMTP Configuration ──────────────────── -->
+  <div class="card" style="grid-column:1/3">
+    <div class="card-header">
+      <div>
+        <div class="card-title">
+          <i class="fa-solid fa-envelope-open-text" style="color:var(--primary);margin-right:8px"></i>
+          SMTP Email Configuration
+        </div>
+        <div class="card-sub">Configure your email server to send credentials to students</div>
+      </div>
+      <!-- Enable toggle -->
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+        <div class="toggle-wrap">
+          <input type="checkbox" id="email-enabled" class="toggle-input"
+                 {% if cfg.enabled %}checked{% endif %} onchange="toggleEnabled(this)"/>
+          <div class="toggle-track">
+            <div class="toggle-thumb"></div>
+          </div>
+        </div>
+        <span id="enabled-label" style="font-size:13px;font-weight:600;
+          color:{% if cfg.enabled %}var(--green){% else %}var(--muted){% endif %}">
+          {% if cfg.enabled %}Enabled{% else %}Disabled{% endif %}
+        </span>
+      </label>
+    </div>
+
+    <!-- Provider Presets -->
+    <div style="margin-bottom:20px">
+      <div class="form-label" style="margin-bottom:8px">Quick Setup — Choose Provider</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap" id="preset-btns">
+        <button class="btn btn-ghost btn-sm" onclick="applyPreset('gmail')">
+          <img src="https://www.google.com/favicon.ico" width="14" height="14"/> Gmail
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="applyPreset('outlook')">
+          <img src="https://outlook.live.com/favicon.ico" width="14" height="14"/> Outlook
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="applyPreset('yahoo')">
+          <img src="https://www.yahoo.com/favicon.ico" width="14" height="14"/> Yahoo
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="applyPreset('zoho')">📨 Zoho</button>
+        <button class="btn btn-ghost btn-sm" onclick="applyPreset('custom')">⚙️ Custom</button>
+      </div>
+      <div id="preset-note" style="margin-top:10px;padding:10px 14px;border-radius:8px;
+        background:rgba(79,142,247,.06);border:1px solid rgba(79,142,247,.15);
+        font-size:12px;color:var(--muted);display:none">
+        <span id="preset-note-text"></span>
+        <a id="preset-guide-link" href="#" target="_blank"
+           style="color:var(--primary);margin-left:8px;font-weight:600">Setup Guide →</a>
+      </div>
+    </div>
+
+    <div id="cfg-alert" style="display:none" class="alert"></div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">SMTP Host *</label>
+        <input type="text" id="smtp-host" class="form-control"
+               value="{{ cfg.smtp_host or '' }}" placeholder="smtp.gmail.com"/>
+      </div>
+      <div class="form-group" style="max-width:140px">
+        <label class="form-label">Port</label>
+        <select id="smtp-port" class="form-control">
+          <option value="587" {% if cfg.smtp_port==587 %}selected{% endif %}>587 (TLS)</option>
+          <option value="465" {% if cfg.smtp_port==465 %}selected{% endif %}>465 (SSL)</option>
+          <option value="25"  {% if cfg.smtp_port==25  %}selected{% endif %}>25</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Email Address *</label>
+        <input type="email" id="smtp-user" class="form-control"
+               value="{{ cfg.smtp_user or '' }}" placeholder="yourschool@gmail.com"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password / App Password *</label>
+        <div style="position:relative">
+          <input type="password" id="smtp-pass" class="form-control"
+                 value="{{ cfg.smtp_pass or '' }}" placeholder="••••••••••••"
+                 style="padding-right:44px"/>
+          <button onclick="togglePwVis()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);
+            background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px" id="pw-vis-btn">
+            <i class="fa-solid fa-eye"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Sender Name (shown in email)</label>
+      <input type="text" id="sender-name" class="form-control"
+             value="{{ cfg.sender_name or 'SCMS Pro' }}" placeholder="My School SCMS"/>
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-ghost" onclick="testConnection()">
+        <i class="fa-solid fa-plug"></i> Test Connection
+      </button>
+      <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="saveConfig()">
+        <i class="fa-solid fa-floppy-disk"></i> Save Configuration
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Send Credentials ────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">
+          <i class="fa-solid fa-paper-plane" style="color:var(--green);margin-right:8px"></i>
+          Send Credentials
+        </div>
+        <div class="card-sub">Email login details to students</div>
+      </div>
+    </div>
+
+    <!-- Bulk Send -->
+    <div style="padding:18px;background:linear-gradient(135deg,rgba(16,185,129,.06),rgba(16,185,129,.03));
+      border:1px solid rgba(16,185,129,.2);border-radius:12px;margin-bottom:16px">
+      <div style="font-size:14px;font-weight:700;margin-bottom:6px">
+        <i class="fa-solid fa-users" style="color:var(--green);margin-right:6px"></i>Bulk Send
+      </div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:14px">
+        Send login credentials to all students who have an email address.
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="bulk-class" class="form-control" style="flex:1">
+          <option value="">All Classes</option>
+          {% for c in classes %}
+          <option value="{{ c }}">Class {{ c }}</option>
+          {% endfor %}
+        </select>
+        <button class="btn btn-success" onclick="sendBulk()">
+          <i class="fa-solid fa-paper-plane"></i> Send All
+        </button>
+      </div>
+    </div>
+
+    <!-- Single Send -->
+    <div style="padding:18px;background:rgba(79,142,247,.05);border:1px solid rgba(79,142,247,.15);
+      border-radius:12px">
+      <div style="font-size:14px;font-weight:700;margin-bottom:6px">
+        <i class="fa-solid fa-user" style="color:var(--primary);margin-right:6px"></i>Single Student
+      </div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:14px">
+        Send credentials to one specific student by ID.
+      </div>
+      <div style="display:flex;gap:8px">
+        <input type="number" id="single-sid" class="form-control"
+               placeholder="Student ID" style="flex:1"/>
+        <button class="btn btn-primary" onclick="sendSingle()">
+          <i class="fa-solid fa-paper-plane"></i> Send
+        </button>
+      </div>
+    </div>
+
+    <!-- Bulk Progress -->
+    <div id="bulk-progress" style="display:none;margin-top:16px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">
+        <i class="fa-solid fa-spinner fa-spin" style="margin-right:6px"></i>
+        <span id="bulk-status">Sending emails…</span>
+      </div>
+      <div class="prog-bar">
+        <div class="prog-fill" id="bulk-bar" style="width:0%;background:var(--green);transition:width .4s"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Email Log ───────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">
+          <i class="fa-solid fa-clock-rotate-left" style="color:var(--accent);margin-right:8px"></i>
+          Send Log
+        </div>
+        <div class="card-sub">Recent email delivery history</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="refreshLog()">
+        <i class="fa-solid fa-rotate"></i> Refresh
+      </button>
+    </div>
+    <div id="email-log-wrap" style="max-height:360px;overflow-y:auto">
+      <div id="email-log-list">
+        {% if log %}
+          {% for entry in log %}
+          <div class="log-row">
+            <div class="log-avatar">{{ entry.name[0] if entry.name else '?' }}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                {{ entry.name or 'Unknown' }}
+              </div>
+              <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                {{ entry.to_email }}
+              </div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <span class="badge {% if entry.status=='sent' %}badge-green{% else %}badge-red{% endif %}" style="font-size:9px">
+                {{ entry.status }}
+              </span>
+              <div style="font-size:10px;color:var(--muted);margin-top:3px;font-family:'DM Mono',monospace">
+                {{ entry.sent_at[:16] if entry.sent_at else '' }}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">
+            <i class="fa-solid fa-inbox" style="font-size:28px;display:block;margin-bottom:8px;opacity:.3"></i>
+            No emails sent yet
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Bulk Results Modal -->
+<div class="modal-overlay" id="bulkResultModal">
+  <div class="modal" style="width:520px;max-height:80vh">
+    <div class="modal-title">
+      <i class="fa-solid fa-envelope-circle-check" style="color:var(--green)"></i>
+      Bulk Send Results
+      <button class="modal-close" onclick="closeModal('bulkResultModal')">✕</button>
+    </div>
+    <div id="bulk-result-summary" style="margin-bottom:16px"></div>
+    <div id="bulk-result-list" style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:8px"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px"
+            onclick="closeModal('bulkResultModal')">Close</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+/* Toggle switch */
+.toggle-wrap { position:relative; display:inline-block; }
+.toggle-input { opacity:0; width:0; height:0; position:absolute; }
+.toggle-track {
+  display:block; width:44px; height:24px; background:var(--border);
+  border-radius:99px; cursor:pointer; transition:background .2s; position:relative;
+}
+.toggle-input:checked + .toggle-track { background:var(--green); }
+.toggle-thumb {
+  position:absolute; top:3px; left:3px; width:18px; height:18px;
+  background:white; border-radius:50%; transition:transform .2s;
+  box-shadow:0 1px 4px rgba(0,0,0,.2);
+}
+.toggle-input:checked + .toggle-track .toggle-thumb { transform:translateX(20px); }
+
+/* Log rows */
+.log-row {
+  display:flex; align-items:center; gap:10px; padding:10px 4px;
+  border-bottom:1px solid rgba(30,45,74,.4);
+}
+.log-row:last-child { border-bottom:none; }
+.log-avatar {
+  width:32px; height:32px; border-radius:50%; flex-shrink:0;
+  background:linear-gradient(135deg,var(--primary),var(--accent));
+  display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:700; color:white; text-transform:uppercase;
+}
+</style>
+
+<script>
+const PRESETS = {
+  gmail:   { host:"smtp.gmail.com",       port:587,
+             note:"Use an App Password (Google Account → Security → 2-Step Verification → App Passwords).",
+             url:"https://support.google.com/accounts/answer/185833" },
+  outlook: { host:"smtp.office365.com",   port:587,
+             note:"Use your full Outlook email and password.",
+             url:"https://support.microsoft.com/en-us/office/pop-imap-and-smtp-settings" },
+  yahoo:   { host:"smtp.mail.yahoo.com",  port:587,
+             note:"Generate an App Password from Yahoo Account Security settings.",
+             url:"https://help.yahoo.com/kb/generate-third-party-passwords-sln15241.html" },
+  zoho:    { host:"smtp.zoho.in",         port:587,
+             note:"Use your Zoho email and password.",
+             url:"https://www.zoho.com/mail/help/zohomail-smtp.html" },
+  custom:  { host:"", port:587, note:"Enter your own SMTP server details.", url:"" }
+};
+
+function applyPreset(key) {
+  const p = PRESETS[key];
+  if (!p) return;
+  document.getElementById('smtp-host').value = p.host;
+  document.getElementById('smtp-port').value = p.port;
+  const noteEl = document.getElementById('preset-note');
+  noteEl.style.display = 'block';
+  document.getElementById('preset-note-text').textContent = p.note;
+  const lnk = document.getElementById('preset-guide-link');
+  lnk.href = p.url || '#';
+  lnk.style.display = p.url ? '' : 'none';
+  showToast(`${key.charAt(0).toUpperCase()+key.slice(1)} preset applied`, 'info');
+}
+
+function toggleEnabled(cb) {
+  const lbl = document.getElementById('enabled-label');
+  lbl.textContent = cb.checked ? 'Enabled' : 'Disabled';
+  lbl.style.color = cb.checked ? 'var(--green)' : 'var(--muted)';
+}
+
+function togglePwVis() {
+  const inp = document.getElementById('smtp-pass');
+  const btn = document.getElementById('pw-vis-btn');
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    btn.innerHTML = '<i class="fa-solid fa-eye-slash"></i>';
+  } else {
+    inp.type = 'password';
+    btn.innerHTML = '<i class="fa-solid fa-eye"></i>';
+  }
+}
+
+function saveConfig() {
+  const cfg = {
+    smtp_host:   document.getElementById('smtp-host').value.trim(),
+    smtp_port:   parseInt(document.getElementById('smtp-port').value),
+    smtp_user:   document.getElementById('smtp-user').value.trim(),
+    smtp_pass:   document.getElementById('smtp-pass').value,
+    sender_name: document.getElementById('sender-name').value.trim(),
+    enabled:     document.getElementById('email-enabled').checked ? 1 : 0
+  };
+  const alertEl = document.getElementById('cfg-alert');
+  fetch('/settings/email/save', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(cfg)
+  }).then(r=>r.json()).then(d => {
+    alertEl.style.display = 'flex';
+    if (d.success) {
+      alertEl.className = 'alert alert-success';
+      alertEl.textContent = '✅ Configuration saved successfully!';
+      showToast('Email settings saved!', 'success');
+    } else {
+      alertEl.className = 'alert alert-error';
+      alertEl.textContent = '⚠ ' + (d.error || 'Save failed');
+    }
+    setTimeout(() => alertEl.style.display='none', 4000);
+  });
+}
+
+function testConnection() {
+  const cfg = {
+    smtp_host: document.getElementById('smtp-host').value.trim(),
+    smtp_port: parseInt(document.getElementById('smtp-port').value),
+    smtp_user: document.getElementById('smtp-user').value.trim(),
+    smtp_pass: document.getElementById('smtp-pass').value,
+  };
+  const alertEl = document.getElementById('cfg-alert');
+  alertEl.style.display = 'flex';
+  alertEl.className = 'alert';
+  alertEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>&nbsp; Testing connection…';
+  fetch('/settings/email/test', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(cfg)
+  }).then(r=>r.json()).then(d => {
+    alertEl.className = d.success ? 'alert alert-success' : 'alert alert-error';
+    alertEl.textContent = d.message;
+    setTimeout(() => alertEl.style.display='none', 6000);
+  });
+}
+
+function sendSingle() {
+  const sid = document.getElementById('single-sid').value;
+  if (!sid) { showToast('Enter a student ID', 'error'); return; }
+  fetch('/email/send/' + sid, { method: 'POST' })
+    .then(r => r.json()).then(d => {
+      if (d.success) {
+        showToast('✅ Email sent successfully!', 'success');
+        refreshLog();
+      } else {
+        showToast('⚠ ' + d.error, 'error');
+      }
+      document.getElementById('single-sid').value = '';
+    });
+}
+
+async function sendBulk() {
+  const cls = document.getElementById('bulk-class').value;
+  const label = cls ? `Class ${cls}` : 'all classes';
+  if (!confirm(`Send credentials to all students in ${label} who have an email? This may take a moment.`)) return;
+
+  document.getElementById('bulk-progress').style.display = 'block';
+  document.getElementById('bulk-status').textContent = 'Sending emails…';
+
+  const res  = await fetch('/email/send-bulk', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ class: cls })
+  });
+  const data = await res.json();
+
+  document.getElementById('bulk-progress').style.display = 'none';
+
+  if (data.async) {
+    showToast(`📧 ${data.message}`, 'info');
+    // Poll log for updates
+    let polls = 0;
+    const poll = setInterval(() => {
+      refreshLog();
+      if (++polls > 10) clearInterval(poll);
+    }, 2000);
+    return;
+  }
+
+  // Synchronous result
+  const { sent, failed, skipped, details } = data;
+  document.getElementById('bulk-result-summary').innerHTML = `
+    <div style="display:flex;gap:12px;margin-bottom:8px">
+      <div class="card card-sm" style="flex:1;text-align:center">
+        <div style="font-size:22px;font-weight:800;color:var(--green)">${sent}</div>
+        <div style="font-size:11px;color:var(--muted)">Sent</div>
+      </div>
+      <div class="card card-sm" style="flex:1;text-align:center">
+        <div style="font-size:22px;font-weight:800;color:var(--red)">${failed}</div>
+        <div style="font-size:11px;color:var(--muted)">Failed</div>
+      </div>
+      <div class="card card-sm" style="flex:1;text-align:center">
+        <div style="font-size:22px;font-weight:800;color:var(--muted)">${skipped||0}</div>
+        <div style="font-size:11px;color:var(--muted)">No Email</div>
+      </div>
+    </div>`;
+  document.getElementById('bulk-result-list').innerHTML = (details||[]).map(d => `
+    <div class="log-row">
+      <div class="log-avatar">${d.name[0]}</div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600">${d.name}</div>
+        <div style="font-size:11px;color:var(--muted)">${d.email}</div>
+        ${d.error && d.status!=='sent' ? `<div style="font-size:11px;color:var(--red)">${d.error}</div>` : ''}
+      </div>
+      <span class="badge ${d.status==='sent'?'badge-green':'badge-red'}" style="font-size:9px">${d.status}</span>
+    </div>`).join('');
+  openModal('bulkResultModal');
+  refreshLog();
+}
+
+function refreshLog() {
+  fetch('/api/email-log').then(r=>r.json()).then(rows => {
+    const el = document.getElementById('email-log-list');
+    if (!rows.length) {
+      el.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px"><i class="fa-solid fa-inbox" style="font-size:28px;display:block;margin-bottom:8px;opacity:.3"></i>No emails sent yet</div>';
+      return;
+    }
+    el.innerHTML = rows.map(e => `
+      <div class="log-row">
+        <div class="log-avatar">${(e.name||'?')[0]}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.name||'Unknown'}</div>
+          <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.to_email}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <span class="badge ${e.status==='sent'?'badge-green':'badge-red'}" style="font-size:9px">${e.status}</span>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px;font-family:'DM Mono',monospace">
+            ${(e.sent_at||'').slice(0,16)}
+          </div>
+        </div>
+      </div>`).join('');
+  });
+}
+
+// Auto-refresh log every 15s
+setInterval(refreshLog, 15000);
+</script>
+{% endblock %}

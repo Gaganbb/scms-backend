@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+{% block title %}Students{% endblock %}
+{% block page_title %}Students{% endblock %}
+
+{% block content %}
+<!-- Toolbar -->
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap">
+  <form method="GET" style="display:flex;gap:8px">
+    <select name="class" class="form-control" style="width:160px" onchange="this.form.submit()">
+      <option value="">All Classes</option>
+      {% for c in classes %}
+      <option value="{{ c }}" {% if c==cls_filter %}selected{% endif %}>{{ c }}</option>
+      {% endfor %}
+    </select>
+  </form>
+  <button class="btn btn-primary" onclick="openModal('addStudentModal')">
+    <i class="fa-solid fa-user-plus"></i> Add Student
+  </button>
+  <a href="/students/import" class="btn btn-ghost">
+    <i class="fa-solid fa-file-import"></i> Bulk Import CSV
+  </a>
+  <span class="badge badge-blue" style="margin-left:auto">{{ students|length }} students</span>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div class="card-title">Student Registry</div>
+      <div class="card-sub">All enrolled students with QR codes</div>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>ID</th><th>Name</th><th>Class</th><th>Email</th><th>Phone</th><th>Enrolled</th><th>Actions</th></tr></thead>
+      <tbody>
+        {% for s in students %}
+        <tr id="student-row-{{ s.id }}">
+          <td><span style="font-family:'DM Mono',monospace;font-size:12px;color:var(--muted)">#{{ s.id }}</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:34px;height:34px;border-radius:50%;
+                          background:linear-gradient(135deg,hsl({{ (s.id * 47) % 360 }},60%,50%),hsl({{ (s.id * 47 + 60) % 360 }},60%,40%));
+                          display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:white;flex-shrink:0">
+                {{ s.name[0] }}
+              </div>
+              <span style="font-weight:600">{{ s.name }}</span>
+            </div>
+          </td>
+          <td><span class="badge badge-blue">{{ s.class }}</span></td>
+          <td style="color:var(--muted);font-size:13px">{{ s.email or '—' }}</td>
+          <td style="color:var(--muted);font-size:13px">{{ s.phone or '—' }}</td>
+          <td style="color:var(--muted);font-size:12px;font-family:'DM Mono',monospace">{{ (s.created_at or '')[:10] }}</td>
+          <td>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-ghost btn-sm" onclick="showQR({{ s.id }}, '{{ s.name }}')" title="View QR">
+                <i class="fa-solid fa-qrcode"></i>
+              </button>
+              <a href="/students/{{ s.id }}" class="btn btn-ghost btn-sm" title="View Profile">
+                <i class="fa-solid fa-eye"></i>
+              </a>
+              <button class="btn btn-ghost btn-sm email-btn"
+                      onclick="sendEmail({{ s.id }}, '{{ s.name }}', '{{ s.email or '' }}')"
+                      title="{% if s.email %}Send credentials to {{ s.email }}{% else %}No email on file{% endif %}"
+                      {% if not s.email %}style="opacity:.35;cursor:not-allowed"{% endif %}>
+                <i class="fa-solid fa-envelope"></i>
+              </button>
+              <button class="btn btn-danger btn-sm" onclick="deleteStudent({{ s.id }}, '{{ s.name }}')" title="Delete">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:50px 0">
+          <i class="fa-solid fa-users" style="font-size:32px;display:block;margin-bottom:10px;opacity:.3"></i>
+          No students found. Add your first student!
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add Student Modal -->
+<div class="modal-overlay" id="addStudentModal">
+  <div class="modal">
+    <div class="modal-title">
+      <i class="fa-solid fa-user-plus" style="color:var(--primary)"></i>
+      Add New Student
+      <button class="modal-close" onclick="closeModal('addStudentModal')">✕</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Full Name *</label>
+        <input type="text" id="s-name" class="form-control" placeholder="Rahul Sharma"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Class *</label>
+        <input type="text" id="s-class" class="form-control" placeholder="10A"/>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" id="s-email" class="form-control" placeholder="student@email.com"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone</label>
+        <input type="text" id="s-phone" class="form-control" placeholder="9876543210"/>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;
+      background:rgba(79,142,247,.05);border:1px solid rgba(79,142,247,.15);border-radius:10px;margin-bottom:4px">
+      <input type="checkbox" id="s-send-email" style="accent-color:var(--primary);width:16px;height:16px;flex-shrink:0"/>
+      <div>
+        <label for="s-send-email" style="font-size:13px;font-weight:600;cursor:pointer">
+          📧 Send login credentials to student's email
+        </label>
+        <div style="font-size:11px;color:var(--muted)">Requires email address and SMTP setup in Email Settings</div>
+      </div>
+    </div>
+    <div id="add-error" style="display:none" class="alert alert-error"></div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal('addStudentModal')">Cancel</button>
+      <button class="btn btn-primary" style="flex:1" onclick="addStudent()">
+        <i class="fa-solid fa-plus"></i> Add Student
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- QR Modal -->
+<div class="modal-overlay" id="qrModal">
+  <div class="modal" style="text-align:center">
+    <div class="modal-title" style="justify-content:center">
+      <i class="fa-solid fa-qrcode" style="color:var(--primary)"></i>
+      <span id="qr-student-name">Student QR</span>
+      <button class="modal-close" onclick="closeModal('qrModal')">✕</button>
+    </div>
+    <img id="qr-img" src="" alt="QR Code"
+         style="max-width:200px;border-radius:12px;border:4px solid var(--border);margin:0 auto;display:block"/>
+    <p style="color:var(--muted);font-size:12px;margin-top:12px">
+      Student scans this QR to mark attendance
+    </p>
+    <a id="qr-download" download class="btn btn-primary" style="margin-top:16px;width:100%;justify-content:center">
+      <i class="fa-solid fa-download"></i> Download QR
+    </a>
+  </div>
+</div>
+
+<!-- Credentials Modal -->
+<div class="modal-overlay" id="credModal">
+  <div class="modal" style="text-align:center">
+    <div class="modal-title" style="justify-content:center">
+      🎉 Student Created!
+      <button class="modal-close" onclick="closeModal('credModal')">✕</button>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">LOGIN CREDENTIALS</div>
+      <div style="font-family:'DM Mono',monospace;font-size:14px;line-height:2.2">
+        Username: <span id="cred-user" style="color:var(--primary);font-size:16px;font-weight:700"></span><br>
+        Password: <span id="cred-pass" style="color:var(--accent);font-size:16px;font-weight:700"></span>
+      </div>
+    </div>
+    <div id="cred-email-note"></div>
+    <p style="color:var(--muted);font-size:12px;margin:14px 0">Share these credentials with the student to log in.</p>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="closeModal('credModal')">Done</button>
+  </div>
+</div>
+
+<!-- Email Send Modal -->
+<div class="modal-overlay" id="emailModal">
+  <div class="modal">
+    <div class="modal-title">
+      <i class="fa-solid fa-envelope" style="color:var(--primary)"></i>
+      Send Login Credentials
+      <button class="modal-close" onclick="closeModal('emailModal')">✕</button>
+    </div>
+    <div id="email-modal-body"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ── Add Student ──────────────────────────────────── */
+function addStudent() {
+  const name      = document.getElementById('s-name').value.trim();
+  const cls       = document.getElementById('s-class').value.trim();
+  const email     = document.getElementById('s-email').value.trim();
+  const phone     = document.getElementById('s-phone').value.trim();
+  const sendEmail = (document.getElementById('s-send-email') || {}).checked ? '1' : '0';
+  if (!name || !cls) {
+    const err = document.getElementById('add-error');
+    err.style.display='flex'; err.textContent='⚠ Name and Class are required.';
+    return;
+  }
+  const fd = new FormData();
+  fd.append('name', name); fd.append('class', cls);
+  fd.append('email', email); fd.append('phone', phone);
+  fd.append('send_email', sendEmail);
+
+  const btn = document.querySelector('#addStudentModal .btn-primary');
+  const origText = btn.innerHTML;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Adding…';
+  btn.disabled = true;
+
+  fetch('/students/add', { method:'POST', body: fd })
+    .then(r=>r.json()).then(d => {
+      btn.innerHTML = origText; btn.disabled = false;
+      if (d.success) {
+        closeModal('addStudentModal');
+        document.getElementById('cred-user').textContent = d.username;
+        document.getElementById('cred-pass').textContent = d.password;
+        const emailNote = document.getElementById('cred-email-note');
+        if (d.email_status === 'sent')
+          emailNote.innerHTML = '<div style="background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);color:var(--green);padding:10px 14px;border-radius:10px;font-size:13px">📧 Credentials emailed to student!</div>';
+        else if (d.email_status === 'failed')
+          emailNote.innerHTML = `<div style="background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.25);color:var(--red);padding:10px 14px;border-radius:10px;font-size:13px">⚠ Email failed: ${d.email_error}</div>`;
+        else
+          emailNote.innerHTML = '';
+        openModal('credModal');
+        setTimeout(() => location.reload(), 3500);
+      } else {
+        const err = document.getElementById('add-error');
+        err.style.display='flex'; err.textContent='⚠ Failed: ' + d.error;
+      }
+    });
+}
+
+/* ── Delete Student ───────────────────────────────── */
+function deleteStudent(id, name) {
+  if (!confirm(`Delete student "${name}"? This will remove all attendance data.`)) return;
+  fetch('/students/delete/' + id, {method:'POST'})
+    .then(r=>r.json()).then(d => {
+      if (d.success) {
+        const row = document.getElementById('student-row-' + id);
+        if (row) { row.style.opacity='0'; row.style.transition='opacity .3s'; setTimeout(()=>row.remove(), 300); }
+        showToast(`${name} removed`, 'info');
+      }
+    });
+}
+
+/* ── Show QR ──────────────────────────────────────── */
+function showQR(id, name) {
+  document.getElementById('qr-student-name').textContent = name + ' — QR';
+  const img = document.getElementById('qr-img');
+  img.src = '/students/qr/' + id;
+  document.getElementById('qr-download').href = '/students/qr/' + id;
+  openModal('qrModal');
+}
+
+/* ── Send Email ───────────────────────────────────── */
+function sendEmail(id, name, email) {
+  if (!email) {
+    showToast('No email on file for ' + name + '. Edit the student to add one.', 'error');
+    return;
+  }
+  document.getElementById('email-modal-body').innerHTML = `
+    <div style="text-align:center;padding:8px 0 20px">
+      <div style="width:56px;height:56px;border-radius:50%;
+        background:linear-gradient(135deg,var(--primary),var(--accent));
+        display:flex;align-items:center;justify-content:center;
+        font-size:22px;font-weight:800;color:white;margin:0 auto 12px">${name[0]}</div>
+      <div style="font-size:17px;font-weight:700">${name}</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:4px">
+        <i class="fa-solid fa-envelope" style="margin-right:5px"></i>${email}
+      </div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;
+      padding:16px 18px;margin-bottom:20px;font-size:13px;color:var(--muted);line-height:1.7">
+      📧 An email will be sent to <strong style="color:var(--text)">${email}</strong>
+      containing the student's username and password to access the student portal.
+    </div>
+    <div id="email-send-status" style="display:none" class="alert"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal('emailModal')">Cancel</button>
+      <button class="btn btn-primary" style="flex:1;justify-content:center" id="email-send-btn"
+              onclick="confirmSendEmail(${id},'${name}','${email}')">
+        <i class="fa-solid fa-paper-plane"></i> Send Credentials
+      </button>
+    </div>`;
+  openModal('emailModal');
+}
+
+function confirmSendEmail(id, name, email) {
+  const btn    = document.getElementById('email-send-btn');
+  const status = document.getElementById('email-send-status');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending…';
+
+  fetch('/email/send/' + id, { method: 'POST' })
+    .then(r => r.json()).then(d => {
+      status.style.display = 'flex';
+      if (d.success) {
+        status.className = 'alert alert-success';
+        status.innerHTML = `✅ Credentials sent to <strong>${email}</strong>`;
+        btn.innerHTML = '✅ Sent!';
+        showToast('📧 Email sent to ' + name, 'success');
+        setTimeout(() => closeModal('emailModal'), 2500);
+      } else {
+        status.className = 'alert alert-error';
+        status.textContent = '⚠ ' + d.error;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Retry';
+      }
+    });
+}
+</script>
+{% endblock %}

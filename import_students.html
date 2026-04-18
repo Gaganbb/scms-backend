@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% block title %}Import Students{% endblock %}
+{% block page_title %}Bulk Import Students{% endblock %}
+
+{% block content %}
+<div style="max-width:720px;margin:0 auto">
+
+  <!-- Back -->
+  <a href="/students" class="btn btn-ghost btn-sm" style="margin-bottom:20px;display:inline-flex">
+    <i class="fa-solid fa-arrow-left"></i> Back to Students
+  </a>
+
+  <!-- Upload Card -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-header">
+      <div>
+        <div class="card-title"><i class="fa-solid fa-file-csv" style="color:var(--green);margin-right:8px"></i>Upload CSV File</div>
+        <div class="card-sub">Import multiple students at once from a CSV file</div>
+      </div>
+    </div>
+
+    <!-- Dropzone -->
+    <div id="dropzone" style="
+      border: 2px dashed var(--border); border-radius: 14px; padding: 50px 20px;
+      text-align: center; cursor: pointer; transition: all .2s; margin-bottom: 20px;
+    " onclick="document.getElementById('csv-file').click()"
+       ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)"
+       ondrop="handleDrop(event)">
+      <div id="dropzone-icon" style="font-size:48px;margin-bottom:12px">📂</div>
+      <div id="dropzone-text" style="font-size:15px;font-weight:600;margin-bottom:6px">
+        Drop CSV file here or click to browse
+      </div>
+      <div style="font-size:13px;color:var(--muted)">Supports .csv files only</div>
+      <input type="file" id="csv-file" accept=".csv" style="display:none" onchange="handleFileSelect(event)"/>
+    </div>
+
+    <!-- Preview -->
+    <div id="preview-section" style="display:none;margin-bottom:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-size:13px;font-weight:700">
+          <span id="preview-filename" style="color:var(--primary)"></span>
+          <span id="preview-count" style="color:var(--muted);font-weight:400;margin-left:8px"></span>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="clearFile()">✕ Clear</button>
+      </div>
+      <div class="table-wrap" style="max-height:220px;overflow-y:auto;border-radius:12px;border:1px solid var(--border)">
+        <table id="preview-table">
+          <thead><tr id="preview-head"></tr></thead>
+          <tbody id="preview-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Upload Btn -->
+    <button class="btn btn-primary" id="upload-btn" style="width:100%;justify-content:center;display:none" onclick="uploadCSV()">
+      <i class="fa-solid fa-cloud-upload-alt"></i> Import Students
+    </button>
+  </div>
+
+  <!-- Format Guide -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-header">
+      <div class="card-title"><i class="fa-solid fa-circle-info" style="color:var(--accent);margin-right:8px"></i>CSV Format</div>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px">
+      Your CSV must have these columns (header row required):
+    </p>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;font-family:'DM Mono',monospace;font-size:13px;color:var(--accent);margin-bottom:14px">
+      name,class,email,phone
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Example rows:</p>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;font-family:'DM Mono',monospace;font-size:12px;line-height:1.8;color:var(--text)">
+      name,class,email,phone<br>
+      Rahul Sharma,10A,rahul@school.in,9876543210<br>
+      Priya Patel,10B,priya@school.in,9876543211<br>
+      Amit Kumar,11A,,<br>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)">
+        <span class="badge badge-green" style="font-size:9px">Required</span> name, class
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)">
+        <span class="badge badge-blue" style="font-size:9px">Optional</span> email, phone
+      </div>
+    </div>
+  </div>
+
+  <!-- Download Template -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fa-solid fa-download" style="color:var(--yellow);margin-right:8px"></i>Download Template</div>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px">
+      Use this pre-formatted CSV template to fill in student data:
+    </p>
+    <button class="btn btn-ghost" onclick="downloadTemplate()">
+      <i class="fa-solid fa-file-csv"></i> Download Template CSV
+    </button>
+  </div>
+</div>
+
+<!-- Results Modal -->
+<div class="modal-overlay" id="resultsModal">
+  <div class="modal" style="width:560px;max-height:80vh;overflow-y:auto">
+    <div class="modal-title">
+      🎉 Import Complete!
+      <button class="modal-close" onclick="closeModal('resultsModal')">✕</button>
+    </div>
+    <div id="import-summary" style="margin-bottom:20px"></div>
+    <div id="import-results" style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto"></div>
+    <div style="margin-top:20px;display:flex;gap:10px">
+      <a href="/students" class="btn btn-primary" style="flex:1;justify-content:center">
+        <i class="fa-solid fa-users"></i> View All Students
+      </a>
+      <button class="btn btn-ghost" style="flex:1;justify-content:center" onclick="closeModal('resultsModal')">Close</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let selectedFile = null;
+
+function handleDragOver(e) {
+  e.preventDefault();
+  document.getElementById('dropzone').style.borderColor = 'var(--primary)';
+  document.getElementById('dropzone').style.background  = 'rgba(79,142,247,.04)';
+}
+function handleDragLeave(e) {
+  document.getElementById('dropzone').style.borderColor = 'var(--border)';
+  document.getElementById('dropzone').style.background  = '';
+}
+function handleDrop(e) {
+  e.preventDefault();
+  handleDragLeave(e);
+  const f = e.dataTransfer.files[0];
+  if (f && f.name.endsWith('.csv')) loadFile(f);
+  else showToast('Please upload a .csv file', 'error');
+}
+function handleFileSelect(e) {
+  const f = e.target.files[0];
+  if (f) loadFile(f);
+}
+
+function loadFile(file) {
+  selectedFile = file;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const lines = e.target.result.split('\n').filter(l => l.trim());
+    if (lines.length < 2) { showToast('CSV must have at least one data row', 'error'); return; }
+    const headers = lines[0].split(',').map(h => h.trim());
+    const rows    = lines.slice(1).map(l => l.split(',').map(c => c.trim()));
+    // Update dropzone
+    document.getElementById('dropzone-icon').textContent = '✅';
+    document.getElementById('dropzone-text').textContent = file.name;
+    // Preview
+    document.getElementById('preview-filename').textContent = file.name;
+    document.getElementById('preview-count').textContent = `(${rows.length} students)`;
+    document.getElementById('preview-head').innerHTML = headers.map(h =>
+      `<th style="text-transform:capitalize">${h}</th>`).join('');
+    document.getElementById('preview-body').innerHTML = rows.slice(0, 10).map(row =>
+      `<tr>${row.map(v => `<td style="font-size:12px">${v||'—'}</td>`).join('')}</tr>`).join('');
+    if (rows.length > 10) {
+      document.getElementById('preview-body').innerHTML +=
+        `<tr><td colspan="${headers.length}" style="text-align:center;color:var(--muted);font-size:12px;padding:8px">… and ${rows.length-10} more rows</td></tr>`;
+    }
+    document.getElementById('preview-section').style.display = 'block';
+    document.getElementById('upload-btn').style.display = 'flex';
+  };
+  reader.readAsText(file);
+}
+
+function clearFile() {
+  selectedFile = null;
+  document.getElementById('csv-file').value = '';
+  document.getElementById('dropzone-icon').textContent = '📂';
+  document.getElementById('dropzone-text').textContent = 'Drop CSV file here or click to browse';
+  document.getElementById('preview-section').style.display = 'none';
+  document.getElementById('upload-btn').style.display    = 'none';
+}
+
+async function uploadCSV() {
+  if (!selectedFile) return;
+  const btn = document.getElementById('upload-btn');
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Importing…';
+  btn.disabled = true;
+  const fd = new FormData();
+  fd.append('csv_file', selectedFile);
+  const res  = await fetch('/students/import', { method: 'POST', body: fd });
+  const data = await res.json();
+  btn.innerHTML = '<i class="fa-solid fa-cloud-upload-alt"></i> Import Students';
+  btn.disabled = false;
+  if (data.success) {
+    document.getElementById('import-summary').innerHTML = `
+      <div style="display:flex;gap:12px;margin-bottom:16px">
+        <div class="card card-sm" style="flex:1;text-align:center">
+          <div style="font-size:24px;font-weight:800;color:var(--green)">${data.added}</div>
+          <div style="font-size:11px;color:var(--muted)">Students Added</div>
+        </div>
+        <div class="card card-sm" style="flex:1;text-align:center">
+          <div style="font-size:24px;font-weight:800;color:var(--yellow)">${data.skipped}</div>
+          <div style="font-size:11px;color:var(--muted)">Skipped</div>
+        </div>
+      </div>`;
+    document.getElementById('import-results').innerHTML =
+      (data.results || []).map(r => `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;
+          background:var(--surface);border:1px solid var(--border);border-radius:10px">
+          <div style="width:30px;height:30px;border-radius:50%;
+            background:linear-gradient(135deg,var(--primary),var(--accent));
+            display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white">
+            ${r.name[0]}
+          </div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:600">${r.name}</div>
+            <div style="font-size:11px;color:var(--muted)">Class ${r.class}</div>
+          </div>
+          <div style="font-size:11px;font-family:'DM Mono',monospace;background:rgba(79,142,247,.1);
+            color:var(--primary);padding:4px 10px;border-radius:8px;text-align:right">
+            ${r.username} / ${r.password}
+          </div>
+        </div>`).join('');
+    openModal('resultsModal');
+  } else {
+    showToast('Import failed: ' + data.error, 'error');
+  }
+}
+
+function downloadTemplate() {
+  const csv  = 'name,class,email,phone\nRahul Sharma,10A,rahul@school.in,9876543210\nPriya Patel,10B,,\n';
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'students_template.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Exams & Marks — EduTrack Pro{% endblock %}
+{% block page_title %}Exams & Marks{% endblock %}
+{% block page_sub %}Manage assessments and enter marks{% endblock %}
+
+{% block topbar_actions %}
+<button class="btn btn-primary btn-sm" onclick="openModal('addExamModal')"><i class="fa fa-plus"></i> Add Exam</button>
+{% endblock %}
+
+{% block content %}
+<div class="filters">
+  <select id="f-dept" onchange="applyFilters()">
+    <option value="">All Departments</option>
+    {% for d in depts %}<option value="{{ d.code }}" {% if dept_filter==d.code %}selected{% endif %}>{{ d.code }}</option>{% endfor %}
+  </select>
+  <select id="f-sem" onchange="applyFilters()">
+    <option value="">All Semesters</option>
+    {% for s in range(1,9) %}<option value="{{ s }}" {% if sem_filter==s|string %}selected{% endif %}>Sem {{ s }}</option>{% endfor %}
+  </select>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>#</th><th>Title</th><th>Type</th><th>Subject</th><th>Dept</th><th>Sem</th><th>Max Marks</th><th>Date</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for e in exams %}
+        <tr>
+          <td style="color:var(--muted);">{{ loop.index }}</td>
+          <td><strong>{{ e.title }}</strong></td>
+          <td>
+            <span class="badge
+              {% if e.exam_type=='internal' %}badge-blue
+              {% elif e.exam_type=='external' %}badge-purple
+              {% elif e.exam_type=='assignment' %}badge-cyan
+              {% else %}badge-yellow{% endif %}">
+              {{ e.exam_type|title }}
+            </span>
+          </td>
+          <td>{{ e.subject_code }} — {{ e.subject_name or '—' }}</td>
+          <td>{{ e.department }}</td>
+          <td>Sem {{ e.semester }}</td>
+          <td><strong>{{ e.max_marks }}</strong></td>
+          <td style="color:var(--muted);font-size:12px;">{{ e.exam_date }}</td>
+          <td>
+            <div style="display:flex;gap:6px;">
+              <a href="/exams/{{ e.id }}/marks" class="btn btn-primary btn-sm"><i class="fa fa-list-ol"></i> Marks</a>
+              {% if role in ('admin','hod') %}
+              <button class="btn btn-danger btn-sm btn-icon" onclick="delExam({{ e.id }})"><i class="fa fa-trash"></i></button>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9"><div class="empty-state"><i class="fa fa-file-pen"></i><h3>No Exams Yet</h3><p>Create your first exam using the button above.</p></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ADD EXAM MODAL -->
+<div class="modal-overlay" id="addExamModal">
+  <div class="modal">
+    <div class="modal-title">Add New Exam <button class="modal-close" onclick="closeModal('addExamModal')">✕</button></div>
+    <div class="input-row">
+      <div class="form-group"><label>Exam Title *</label><input id="e-title" placeholder="e.g. CAT 1, Mid Sem"></div>
+      <div class="form-group"><label>Type *</label>
+        <select id="e-type">
+          <option value="internal">Internal</option>
+          <option value="external">External / University</option>
+          <option value="assignment">Assignment</option>
+          <option value="lab">Lab</option>
+        </select>
+      </div>
+    </div>
+    <div class="input-row">
+      <div class="form-group"><label>Department *</label>
+        <select id="e-dept" onchange="loadSubjects()">
+          {% for d in depts %}<option value="{{ d.code }}">{{ d.code }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group"><label>Semester *</label>
+        <select id="e-sem" onchange="loadSubjects()">
+          {% for s in range(1,9) %}<option value="{{ s }}">Sem {{ s }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>Subject *</label>
+      <select id="e-subject">{% for sub in subjects %}<option value="{{ sub.id }}">{{ sub.code }} — {{ sub.name }}</option>{% endfor %}</select>
+    </div>
+    <div class="input-row">
+      <div class="form-group"><label>Max Marks *</label><input id="e-max" type="number" value="100" min="1"></div>
+      <div class="form-group"><label>Exam Date *</label><input id="e-date" type="date"></div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px;">
+      <button class="btn btn-ghost" onclick="closeModal('addExamModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitExam()"><i class="fa fa-plus"></i> Add Exam</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function applyFilters() {
+  const dept = document.getElementById('f-dept').value;
+  const sem  = document.getElementById('f-sem').value;
+  window.location = `/exams?dept=${dept}&sem=${sem}`;
+}
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+async function loadSubjects() {
+  const dept = document.getElementById('e-dept').value;
+  const sem  = document.getElementById('e-sem').value;
+  const r    = await fetch(`/api/subjects?dept=${dept}&sem=${sem}`);
+  const subs = await r.json();
+  const sel  = document.getElementById('e-subject');
+  sel.innerHTML = subs.map(s => `<option value="${s.id}">${s.code} — ${s.name}</option>`).join('');
+}
+
+async function submitExam() {
+  const d = await apiPost('/exams/add', {
+    title: document.getElementById('e-title').value,
+    exam_type: document.getElementById('e-type').value,
+    dept: document.getElementById('e-dept').value,
+    sem:  document.getElementById('e-sem').value,
+    subject_id: document.getElementById('e-subject').value,
+    max_marks:  document.getElementById('e-max').value,
+    exam_date:  document.getElementById('e-date').value,
+  });
+  if (d.success) { toast('Exam created!', 'success'); setTimeout(()=>location.reload(),800); }
+  else toast(d.error || 'Failed', 'error');
+}
+async function delExam(eid) {
+  confirmDelete(`/exams/delete/${eid}`, 'Delete this exam and all its marks?', () => location.reload());
+}
+</script>
+{% endblock %}
