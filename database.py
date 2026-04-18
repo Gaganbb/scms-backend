@@ -1,5 +1,5 @@
 import sqlite3
-import qrcode
+#import qrcode
 import os
 from datetime import datetime, date
 
